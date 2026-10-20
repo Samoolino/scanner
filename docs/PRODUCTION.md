@@ -27,8 +27,10 @@ XT. Exit: each adapter passes conformance tests. Groovex identity/docs must be v
 unknown APIs remain explicitly unsupported.
 P3 Identity/transfers/costs: venue market IDs; base/quote canonicalization; native-asset
 rules; chain IDs + contracts where applicable; supported network mapping; current
-deposit/withdraw status, limits, minimums and fees; source, timestamp, TTL. Exit: no
-candidate without fresh independent evidence. CG/CMC are discovery/cross-check only,
+deposit/withdraw status, limits, minimums and fees; source, timestamp, TTL. Trading fee
+currency must be explicit. Current P&L math accepts quote-currency trading fees only; base-
+asset or exchange-token fee models remain unsupported and fail closed. Exit: no candidate
+without fresh independent evidence. CG/CMC are discovery/cross-check only,
 never transfer-status authorities.
 P4 Agentic continuous scanner: event-driven workers, bounded queues, stale-data circuit
 breakers, candidate deduplication, persistence (Postgres/Redis selected by deployment),
@@ -79,7 +81,7 @@ used in ChatGPT are not automatically embedded into the deployed scanner runtime
 ## Required candidate audit fields
 candidate_id, venues, venue symbols, canonical asset, chain/network, contracts or native
 asset rule, book sequence/version, exchange and receive timestamps, book age, executable
-quantity, buy/sell VWAP and quote notionals, fee rate + fee currency + source + observed_at,
+quantity, buy/sell VWAP and quote notionals, fee rate + fee currency + source + observed_at (quote-currency only until additional fee models are implemented),
 withdrawal fee + asset + source + observed_at, deposit/withdraw enabled state + source +
 observed_at, net quote profit, risk policy version, rejection reason, agent decisions.
 A symbol-only match or a price-only spread is never enough.
