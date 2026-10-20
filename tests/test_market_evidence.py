@@ -75,3 +75,13 @@ def test_market_symbol_must_match_verified_venue_identity():
         asset("binance"), mismatched, now_ms=10000
     )
     assert result == {"comparable": False, "reason": "asset_identity_unverified"}
+
+
+def test_malformed_identity_metadata_fails_closed_without_exception():
+    malformed = AssetIdentity("bybit", None, None, None, "registry", 10000)
+    result = compare_live_markets(
+        snapshot("binance", "10", "1000"),
+        snapshot("bybit", "10.5", "2000"),
+        asset("binance"), malformed, now_ms=10000
+    )
+    assert result == {"comparable": False, "reason": "asset_identity_unverified"}
