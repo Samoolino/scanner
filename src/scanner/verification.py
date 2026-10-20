@@ -96,6 +96,8 @@ def verified_route(route: TransferRoute | None, buy_venue: str, sell_venue: str,
         and route.withdrawals_enabled is True
         and route.deposits_enabled is True
         and _valid_transfer_limits(route)
+        and isinstance(route.verified_at_ms, int)
+        and not isinstance(route.verified_at_ms, bool)
         and fresh(route.verified_at_ms, now_ms, ttl_ms)
     )
 
@@ -172,8 +174,8 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
     if not (Decimal("0") <= buy_fee.taker_rate < 1
             and Decimal("0") <= sell_fee.taker_rate < 1):
         return {"eligible": False, "reason": "invalid_trading_fee"}
-    return assess(buy, sell, quantity, Costs(buy_fee.taker_rate,
-                  sell_fee.taker_rate, route.withdrawal_fee_base,
+    return assess(buy, sell, amount, Costs(buy_fee.taker_rate,
+                  sell_fee.taker_rate, withdrawal_fee,
                   other_quote, reserve_quote), now_ms, book_ttl_ms, True, True)
 
 def top_ten(candidates: list[dict]) -> list[dict]:
