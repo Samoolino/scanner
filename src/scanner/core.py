@@ -48,6 +48,11 @@ def assess(buy: Book, sell: Book, quantity: Decimal, costs: Costs,
         return {"eligible": False, "reason": "transfer_route_unverified"}
     if buy.venue == sell.venue or buy.symbol != sell.symbol:
         return {"eligible": False, "reason": "market_mismatch"}
+    if not buy.bids or not buy.asks or not sell.bids or not sell.asks:
+        return {"eligible": False, "reason": "empty_orderbook"}
+    if (buy.bids[0][0] >= buy.asks[0][0]
+            or sell.bids[0][0] >= sell.asks[0][0]):
+        return {"eligible": False, "reason": "crossed_orderbook"}
     if not buy.sequence_valid or not sell.sequence_valid:
         return {"eligible": False, "reason": "orderbook_sequence_invalid"}
     if any(b.timestamp_ms > now_ms or now_ms - b.timestamp_ms > max_age_ms for b in (buy, sell)):
