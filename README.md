@@ -16,7 +16,7 @@ A cross-venue comparison should make the following visible and independently tra
 - **Exchange listing:** whether the exact spot market is listed and currently available on each venue, with source and observation time.
 - **Live prices:** last/trade or best bid/ask values labeled by source and age. Price-only spread is indicative, not an executable opportunity.
 - **Exchange volume and liquidity:** per-venue 24-hour quote volume plus order-book depth and executable VWAP for the requested quantity. Aggregate market volume is not exchange-specific liquidity.
-- **Net opportunity:** fees in supported currencies, withdrawal costs and network, transfer availability, minimums/limits, slippage and latency reserves. Publish a positive opportunity only after all deterministic gates pass.
+- **Net opportunity:** fees in supported currencies, withdrawal costs and canonical network, transfer availability, withdrawal/deposit minimums and maximums, slippage and latency reserves. Withdrawal fees must be explicitly denominated in the base asset. The requested amount must fit withdrawal limits, and the post-fee received amount must fit deposit limits. Missing bounds or unknown fee units fail closed. Publish a positive opportunity only after all deterministic gates pass.
 
 If quote currencies differ (for example, USDT versus USDC), do not compare raw prices or notionals without a verified conversion path and conversion-cost model. Unknown identity, listing, network, fee, transfer, book sequence, or freshness means fail closed.
 
