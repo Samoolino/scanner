@@ -22,6 +22,8 @@ If quote currencies differ (for example, USDT versus USDC), do not compare raw p
 
 ## Current status
 
+**Current stage: P1 prototype, with partial P3 verification logic and an agent-orchestration prototype; not production-ready.** CI run #131 passed for the prior code head, but the newest production-stage/connector documentation change still requires its own CI check. The stage gates and plugin/connector engagement register are maintained in [docs/PRODUCTION.md](docs/PRODUCTION.md).
+
 **Prototype; not yet an all-venue live scanner and not production-ready.** Implemented foundations include Decimal depth/profit math, Binance and Bybit public feed prototypes, book sequence validation, fail-closed verification interfaces, deterministic agent coordination, MCP role policy, tests and CI configuration. Production coverage still requires native adapters and acceptance evidence for all planned venues, authoritative token/listing/chain/transfer/fee providers, persistent service/API/dashboard, monitoring, replay/fault tests, and a 24-hour or longer paper soak.
 
 Results from unit tests or point-in-time connector snapshots are synthetic/diagnostic and must not be presented as verified live opportunities. This phase is read-only and paper-only: no orders or withdrawals.
