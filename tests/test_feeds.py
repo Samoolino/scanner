@@ -29,3 +29,24 @@ def test_binance_bootstrap_rejects_unbounded_buffer():
     pending = [{"U": 11, "u": 11, "E": 1001, "b": [], "a": []}] * 3
     with pytest.raises(ResyncRequired, match="buffer limit"):
         bootstrap_binance_book(state, snapshot, pending, received_at_ms=1000, max_buffered_events=2)
+
+
+@pytest.mark.parametrize("bad_snapshot_id", [True, 10.5, "10"])
+def test_binance_bootstrap_rejects_coercible_snapshot_sequence_ids(bad_snapshot_id):
+    state = BinanceDepth("binance", "BTCUSDT")
+    snapshot = {"bids": [["100", "1"]], "asks": [["101", "1"]], "lastUpdateId": bad_snapshot_id}
+    pending = [{"U": 11, "u": 11, "E": 1001, "b": [], "a": []}]
+    with pytest.raises(ResyncRequired):
+        bootstrap_binance_book(state, snapshot, pending, received_at_ms=1000)
+    with pytest.raises(ResyncRequired):
+        state.export()
+
+
+def test_binance_bootstrap_rejects_float_update_ids():
+    state = BinanceDepth("binance", "BTCUSDT")
+    snapshot = {"bids": [["100", "1"]], "asks": [["101", "1"]], "lastUpdateId": 10}
+    pending = [{"U": 11.5, "u": 12, "E": 1001, "b": [], "a": []}]
+    with pytest.raises(ResyncRequired):
+        bootstrap_binance_book(state, snapshot, pending, received_at_ms=1000)
+    with pytest.raises(ResyncRequired):
+        state.export()
