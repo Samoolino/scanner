@@ -24,8 +24,8 @@ class ConnectorPolicy:
     role: EvidenceRole
     advisory_scope: str
     forbidden_authority: str = (
-        "Cannot establish full scanner eligibility, cross-venue canonical asset "
-        "identity, transfer route/status, authoritative fee schedule, or authorize execution."
+        "Cannot establish order-book eligibility, cross-venue canonical asset identity, "
+        "transfer route/status, authoritative fee schedule, or authorize execution."
     )
     may_provide_spot_snapshot: bool = False
     may_prove_spot_liquidity: bool = False
