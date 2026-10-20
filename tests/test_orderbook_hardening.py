@@ -47,7 +47,6 @@ def test_bybit_bad_delta_invalidates_book():
         state.export()
 
 
-
 def test_binance_freshness_uses_local_receive_timestamp():
     state = BinanceDepth("binance", "BTCUSDT")
     state.snapshot([["100", "1"]], [["101", "1"]], 10, 1000)
@@ -60,3 +59,23 @@ def test_bybit_freshness_uses_local_receive_timestamp():
     state.message({"type": "snapshot", "ts": 900_000, "data": {"u": 5, "b": [["100", "1"]], "a": [["101", "1"]]}}, received_at_ms=1000)
     state.message({"type": "delta", "ts": 900_001, "data": {"u": 6, "b": [], "a": []}}, received_at_ms=1002)
     assert state.timestamp_ms == 1002
+
+
+@pytest.mark.parametrize("bad_value", [True, False, 1.5, -0.5])
+def test_snapshot_rejects_non_integer_sequence_and_timestamp(bad_value):
+    state = BinanceDepth("binance", "BTCUSDT")
+    with pytest.raises(ResyncRequired):
+        state.snapshot([["100", "1"]], [["101", "1"]], bad_value, 1000)
+    with pytest.raises(ResyncRequired):
+        state.snapshot([["100", "1"]], [["101", "1"]], 1, bad_value)
+    with pytest.raises(ResyncRequired):
+        state.export()
+
+
+def test_binance_rejects_boolean_update_ids_and_invalidates_book():
+    state = BinanceDepth("binance", "BTCUSDT")
+    state.snapshot([["100", "1"]], [["101", "1"]], 10, 1000)
+    with pytest.raises(ResyncRequired):
+        state.delta({"U": True, "u": 11, "E": 1001, "b": [], "a": []})
+    with pytest.raises(ResyncRequired):
+        state.export()
