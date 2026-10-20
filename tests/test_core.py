@@ -44,3 +44,20 @@ def test_withdrawal_exceeds_quantity():
     result = assess(book("a", 10, 11), book("b", 15, 16),
                     D("0.1"), costs(), 1000, 100, True, True)
     assert result["reason"] == "withdrawal_exceeds_quantity"
+
+
+@pytest.mark.parametrize(
+    "side,levels",
+    [
+        ("buy", ((D("10"), D("1")), (D("9"), D("1")))),
+        ("buy", ((D("10"), D("1")), (D("10"), D("2")))),
+        ("sell", ((D("9"), D("1")), (D("10"), D("1")))),
+        ("sell", ((D("10"), D("1")), (D("10"), D("2")))),
+    ],
+)
+def test_executable_rejects_unsorted_or_duplicate_levels(side, levels):
+    bids = levels if side == "sell" else ((D("8"), D("1")),)
+    asks = levels if side == "buy" else ((D("11"), D("1")),)
+    malformed = Book("venue", "ABC/USDT", bids, asks, 1000, True)
+    with pytest.raises(ValueError, match="ordering"):
+        executable(malformed, side, D("1"))
