@@ -97,8 +97,11 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
     sell_quote_currency = _quote_currency(sell.symbol)
     if not buy_quote_currency or not sell_quote_currency:
         return {"eligible": False, "reason": "quote_currency_unverified"}
-    if (buy_quote_currency != sell_quote_currency
-            or buy_fee.fee_currency.strip().upper() != buy_quote_currency
+    # Different quote assets are different markets; never compare their raw
+    # notionals as if they shared a common unit of account.
+    if buy_quote_currency != sell_quote_currency:
+        return {"eligible": False, "reason": "market_mismatch"}
+    if (buy_fee.fee_currency.strip().upper() != buy_quote_currency
             or sell_fee.fee_currency.strip().upper() != sell_quote_currency):
         return {"eligible": False, "reason": "trading_fee_currency_unverified"}
     if not (Decimal("0") <= buy_fee.taker_rate < 1
