@@ -7,6 +7,16 @@ Return at most ten evidence-backed, depth-executable opportunities after fees,
 withdrawal costs, asset/chain identity and transfer-state verification.
 This phase is read-only/paper-only: no orders, withdrawals, custody or signing.
 
+## Real-time market comparison contract
+
+Every scan row labelled **live** must be sourced from a direct exchange adapter and include a source/event timestamp when supplied by the venue, a local receive timestamp, source health, and calculated age. Missing, stale, future-dated, disconnected, sequence-invalid, or malformed observations are unavailable and must not be silently replaced with cached prices. CoinGecko and CoinMarketCap provide discovery and broad context; their aggregate prices/volumes are not live exchange-specific truth.
+
+Each comparison should expose: (1) canonical token identity including chain/network and contract address where applicable; (2) exact spot listing status per exchange; (3) venue-specific current price and quote currency; (4) venue-specific 24-hour quote volume; (5) order-book spread, depth, and quantity-specific VWAP; and (6) evidence timestamps and source provenance. Symbol/name matches alone are insufficient. If quote currencies differ, raw prices are not directly comparable without an independently verified conversion price and cost model.
+
+A displayed price spread is informational only. An executable candidate still requires synchronized fresh order books, canonical asset identity, verified network/transfer route and deposit/withdraw status, authoritative fee currency/rates, limits/minimums, depth-aware VWAP, latency/slippage reserves, and strictly positive net profit. Listing and volume are useful comparison fields but do not prove executable liquidity.
+
+**Current coverage limitation:** the repository contains initial Binance and Bybit public WebSocket feed prototypes. It does not yet have verified native live adapters for all planned venues. Gate Info MCP snapshots can cross-check a point-in-time observation but cannot be counted as a continuously maintained feed. A venue must not be labelled live until its adapter passes sequencing, freshness, reconnect, fixture and live-acceptance checks. Redis can support timestamped cache/stream state, deduplication and persistence, but cached values never override source freshness gates. Superpowers/Build assist the test-first engineering workflow; they do not supply exchange truth or waive verification.
+
 ## Stage assessment (2026-10-20)
 **P1 prototype with initial P3 verification rules and agent coordinator. Not production.**
 Implemented in repo: Decimal depth math; Binance/Bybit feed prototypes; basic book
