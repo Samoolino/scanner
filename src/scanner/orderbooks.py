@@ -85,7 +85,7 @@ class BinanceDepth(DepthState):
         try:
             first = self._integer(event["U"], "first update ID")
             last = self._integer(event["u"], "last update ID")
-        except (KeyError, TypeError) as exc:
+        except (KeyError, TypeError, ResyncRequired) as exc:
             self.valid = False
             raise ResyncRequired("invalid Binance sequence fields") from exc
         if first > last:
@@ -101,7 +101,7 @@ class BinanceDepth(DepthState):
             timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None
                          else self._integer(event["E"], "event timestamp"))
             self._apply(event["b"], event["a"])
-        except (KeyError, TypeError) as exc:
+        except (KeyError, TypeError, ResyncRequired) as exc:
             self.valid = False
             raise ResyncRequired("invalid Binance delta payload") from exc
         self.sequence = last
@@ -117,7 +117,7 @@ class BybitDepth(DepthState):
             update = self._integer(data["u"], "update ID")
             timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None
                          else self._integer(event["ts"], "timestamp"))
-        except (KeyError, TypeError) as exc:
+        except (KeyError, TypeError, ResyncRequired) as exc:
             self.valid = False
             raise ResyncRequired("invalid Bybit message") from exc
 
