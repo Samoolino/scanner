@@ -120,6 +120,12 @@ class BybitDepth(DepthState):
             self.valid = False
             raise ResyncRequired("invalid Bybit message") from exc
 
+        # Reject unknown message types before interpreting update ID 1 as a
+        # snapshot marker; malformed/unknown frames must not revive old state.
+        if message_type not in ("snapshot", "delta"):
+            self.valid = False
+            raise ResyncRequired("Bybit snapshot required")
+
         if message_type == "snapshot" or update == 1:
             # A malformed replacement snapshot must never leave the previous
             # synchronized book usable.
@@ -130,9 +136,6 @@ class BybitDepth(DepthState):
                 self.valid = False
                 raise ResyncRequired("invalid Bybit snapshot payload") from exc
             return
-        if message_type != "delta":
-            self.valid = False
-            raise ResyncRequired("Bybit snapshot required")
         if not self.valid or self.sequence is None:
             raise ResyncRequired("Bybit snapshot required")
         if update <= self.sequence:
