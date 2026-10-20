@@ -18,13 +18,12 @@ class DepthState:
 
     @staticmethod
     def _integer(value, field: str) -> int:
-        try:
-            parsed = int(value)
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise ResyncRequired(f"invalid {field}") from exc
-        if parsed < 0:
+        # Exchange sequence IDs and receive timestamps are JSON integers. Do not
+        # coerce bools, floats, or numeric strings: int() would silently turn
+        # True into 1 and truncate fractional values, masking invalid evidence.
+        if type(value) is not int or value < 0:
             raise ResyncRequired(f"invalid {field}")
-        return parsed
+        return value
 
     def _apply(self, bids, asks):
         """Validate the complete delta before mutating either side."""
