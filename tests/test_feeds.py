@@ -62,3 +62,19 @@ def test_binance_bootstrap_missing_snapshot_levels_invalidates_existing_book():
         bootstrap_binance_book(state, malformed_snapshot, pending, received_at_ms=1000)
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+
+@pytest.mark.parametrize("payload", ["[]", "null", "42", '"text"'])
+def test_websocket_json_frame_must_be_object(payload):
+    from scanner.feeds import decode_json_object
+
+    with pytest.raises(ResyncRequired, match="JSON object"):
+        decode_json_object(payload, venue="bybit")
+
+
+def test_websocket_invalid_json_is_resync_error():
+    from scanner.feeds import decode_json_object
+
+    with pytest.raises(ResyncRequired, match="invalid JSON"):
+        decode_json_object("{not-json", venue="binance")
