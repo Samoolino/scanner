@@ -121,7 +121,14 @@ class BybitDepth(DepthState):
             raise ResyncRequired("invalid Bybit message") from exc
 
         if message_type == "snapshot" or update == 1:
-            self.snapshot(data["b"], data["a"], update, timestamp)
+            # A malformed replacement snapshot must never leave the previous
+            # synchronized book usable.
+            self.valid = False
+            try:
+                self.snapshot(data["b"], data["a"], update, timestamp)
+            except (KeyError, TypeError, ResyncRequired) as exc:
+                self.valid = False
+                raise ResyncRequired("invalid Bybit snapshot payload") from exc
             return
         if message_type != "delta" or not self.valid or self.sequence is None:
             raise ResyncRequired("Bybit snapshot required")
