@@ -160,3 +160,65 @@ def test_binance_bootstrap_gap_after_bridge_invalidates_book():
         bootstrap_binance_book(state, snapshot, pending, received_at_ms=1000)
     with pytest.raises(ResyncRequired, match="synchronized"):
         state.export()
+
+
+
+def test_binance_feed_cancellation_drains_snapshot_request(monkeypatch):
+    import asyncio
+    import sys
+    from types import SimpleNamespace
+    from scanner.feeds import binance_books
+
+    async def check():
+        request_started = asyncio.Event()
+        request_finalized = asyncio.Event()
+        receive_started = asyncio.Event()
+
+        class FakeWebSocket:
+            async def receive(self, timeout=None):
+                receive_started.set()
+                await asyncio.Event().wait()
+
+        class FakeWebSocketContext:
+            async def __aenter__(self):
+                return FakeWebSocket()
+
+            async def __aexit__(self, *args):
+                return False
+
+        class FakeSession:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+            def ws_connect(self, *args, **kwargs):
+                return FakeWebSocketContext()
+
+            async def get(self, *args, **kwargs):
+                request_started.set()
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    request_finalized.set()
+
+        fake_aiohttp = SimpleNamespace(
+            ClientSession=FakeSession,
+            WSMsgType=SimpleNamespace(TEXT=1),
+            ClientError=RuntimeError,
+        )
+        monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
+        feed = binance_books()
+        consumer = asyncio.create_task(anext(feed))
+        await request_started.wait()
+        await receive_started.wait()
+        consumer.cancel()
+        try:
+            await consumer
+        except asyncio.CancelledError:
+            pass
+        assert request_finalized.is_set()
+        await feed.aclose()
+
+    asyncio.run(check())
