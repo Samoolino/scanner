@@ -115,7 +115,8 @@ class BybitDepth(DepthState):
             data = event["data"]
             message_type = event["type"]
             update = self._integer(data["u"], "update ID")
-            timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None\n                         else self._integer(event["ts"], "timestamp"))
+            timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None
+                         else self._integer(event["ts"], "timestamp"))
         except (KeyError, TypeError) as exc:
             self.valid = False
             raise ResyncRequired("invalid Bybit message") from exc
