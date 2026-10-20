@@ -23,11 +23,17 @@ def bootstrap_binance_book(state, snapshot, pending, received_at_ms,
         state.valid = False
         raise ResyncRequired("Binance bootstrap buffer limit exceeded")
     try:
-        last_update_id = int(snapshot["lastUpdateId"])
-        bridge_exists = any(
-            int(event["U"]) <= last_update_id + 1 <= int(event["u"])
-            for event in pending
-        )
+        last_update_id = snapshot["lastUpdateId"]
+        if type(last_update_id) is not int or last_update_id < 0:
+            raise ValueError("invalid snapshot update ID")
+        bridge_exists = False
+        for event in pending:
+            first, last = event["U"], event["u"]
+            if (type(first) is not int or type(last) is not int
+                    or first < 0 or last < 0 or first > last):
+                raise ValueError("invalid buffered update ID")
+            if first <= last_update_id + 1 <= last:
+                bridge_exists = True
     except (KeyError, TypeError, ValueError, OverflowError) as exc:
         state.valid = False
         raise ResyncRequired("invalid Binance snapshot or buffered event") from exc
