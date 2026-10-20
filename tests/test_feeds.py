@@ -116,3 +116,28 @@ def test_cancel_and_drain_consumes_completed_task_exception():
         assert task.exception() is not None
 
     asyncio.run(check())
+
+
+
+def test_cancel_and_drain_waits_for_task_finalizer():
+    import asyncio
+    from scanner.feeds import cancel_and_drain
+
+    async def check():
+        started = asyncio.Event()
+        finalized = asyncio.Event()
+
+        async def pending_request():
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                finalized.set()
+
+        task = asyncio.create_task(pending_request())
+        await started.wait()
+        await cancel_and_drain(task)
+        assert task.cancelled()
+        assert finalized.is_set()
+
+    asyncio.run(check())
