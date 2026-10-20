@@ -72,7 +72,7 @@ async def binance_books(symbol="BTCUSDT"):
                     while not snapshot_task.done():
                         try:
                             event = await asyncio.wait_for(receive(), timeout=0.25)
-                            pending.append(event)
+                            event[\"_scanner_received_at_ms\"] = int(time.time() * 1000)\n                            pending.append(event)
                             if len(pending) > BINANCE_MAX_BUFFERED_EVENTS:
                                 snapshot_task.cancel()
                                 raise ResyncRequired("Binance bootstrap buffer limit exceeded")
