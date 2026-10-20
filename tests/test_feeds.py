@@ -50,3 +50,15 @@ def test_binance_bootstrap_rejects_float_update_ids():
         bootstrap_binance_book(state, snapshot, pending, received_at_ms=1000)
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+def test_binance_bootstrap_missing_snapshot_levels_invalidates_existing_book():
+    state = BinanceDepth("binance", "BTCUSDT")
+    state.snapshot([["100", "1"]], [["101", "1"]], 10, 1000)
+    malformed_snapshot = {"lastUpdateId": 10, "asks": [["101", "1"]]}
+    pending = [{"U": 11, "u": 11, "E": 1001, "b": [], "a": []}]
+
+    with pytest.raises(ResyncRequired, match="snapshot"):
+        bootstrap_binance_book(state, malformed_snapshot, pending, received_at_ms=1000)
+    with pytest.raises(ResyncRequired):
+        state.export()
