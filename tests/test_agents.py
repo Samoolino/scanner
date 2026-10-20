@@ -14,8 +14,8 @@ def complete():
         AssetIdentity("a", "ABC", "eip155:1", "0xabc", "api", 1000),
         AssetIdentity("b", "ABC", "eip155:1", "0xabc", "api", 1000),
         TransferRoute("a", "b", "eip155:1", True, True, D("0.1"), "api", 1000),
-        FeeEvidence("a", D("0.001"), "api", 1000),
-        FeeEvidence("b", D("0.001"), "api", 1000))
+        FeeEvidence("a", D("0.001"), "api", 1000, "USDT"),
+        FeeEvidence("b", D("0.001"), "api", 1000, "USDT"))
 
 def test_supervisor_never_invents_missing_evidence():
     e = EvidenceBundle(book("a", "10", "11"), book("b", "15", "16"), D("2"))
