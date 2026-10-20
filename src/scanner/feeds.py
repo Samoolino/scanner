@@ -41,7 +41,14 @@ def bootstrap_binance_book(state, snapshot, pending, received_at_ms,
         state.valid = False
         raise ResyncRequired("Binance snapshot bridge not established")
 
-    state.snapshot(snapshot["bids"], snapshot["asks"], last_update_id, received_at_ms)
+    # A failed replacement snapshot must never leave a previously valid book usable.
+    state.valid = False
+    try:
+        bids, asks = snapshot["bids"], snapshot["asks"]
+        state.snapshot(bids, asks, last_update_id, received_at_ms)
+    except (KeyError, TypeError, ValueError, OverflowError, ResyncRequired) as exc:
+        state.valid = False
+        raise ResyncRequired("invalid Binance snapshot payload") from exc
     for event in pending:
         state.delta(
             event,
