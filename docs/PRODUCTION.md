@@ -1,49 +1,85 @@
-# Production line and release gates
+# Production plan, enforcement matrix, and MCP responsibilities
 
-## Original objective
-A persistent, high-frequency **spot** scanner across MEXC, LBank, HTX,
-KuCoin, Binance, Bybit, Bitfinex, Gate.io, Groovex, and XT, ranking up to
-ten **real, executable, positive-net-profit** opportunities after asset,
-chain, deposit/withdraw, order-book depth, and all fee checks.
+## Objective and non-goals
+Build a persistent, high-frequency centralized-exchange **spot** arbitrage scanner for
+MEXC, LBank, HTX, KuCoin, Binance, Bybit, Bitfinex, Gate.io, Groovex and XT.
+Return at most ten evidence-backed, depth-executable opportunities after fees,
+withdrawal costs, asset/chain identity and transfer-state verification.
+This phase is read-only/paper-only: no orders, withdrawals, custody or signing.
 
-## Current stage: P1 — prototype market-data ingestion (NOT production)
+## Stage assessment (2026-10-20)
+**P1 prototype with initial P3 verification rules and agent coordinator. Not production.**
+Implemented in repo: Decimal depth math; Binance/Bybit feed prototypes; basic book
+state classes; fail-closed verification interfaces; deterministic agent supervisor,
+risk cap and audit records; tests and CI configuration.
+Not evidenced complete: running tests/green CI; live feed acceptance; other 8 venues;
+authoritative contract/network/deposit/withdraw/fee providers; persistent service/API;
+dashboard; replay/failure injection; metrics/alerts; 24h soak. Do not advertise live
+opportunities until these gates pass.
 
-- P0: repository, core depth math, fee deductions, unit-test fixtures: implemented.
-- P1: Binance and Bybit public WebSocket prototype: implemented, **not yet
-  accepted against live exchange traffic**.
-- P2: MEXC, KuCoin, Gate, HTX, LBank, Bitfinex, XT and Groovex adapters:
-  pending. Groovex's actual exchange identity and API must be validated.
-- P3: canonical token/contract/chain registry and continuously refreshed
-  deposit/withdrawal + account fee ingestion: **verification interfaces
-  implemented, authoritative data providers not integrated**.
-- P4: streaming candidate discovery, Redis persistence, top-ten API/dashboard:
-  pending.
-- P5: replay tests, exchange failure injection, live paper-mode soak,
-  observability, CI green, operational runbooks: pending.
-- P6: optional trade execution: **not authorized or implemented**.
+## Production order and exit criteria
+P0 Foundation: schema, lint/type checks, unit tests and CI. Exit: CI green.
+P1 Market-data integrity: venue-specific WS adapters; snapshot bootstrap; sequence
+continuity/checksum where documented; reconnect/backoff; freshness/clock checks;
+bounded queues; health metrics. Exit: captured-fixture tests + live acceptance per venue.
+P2 Coverage: MEXC, LBank, HTX, KuCoin, Binance, Bybit, Bitfinex, Gate.io, Groovex,
+XT. Exit: each adapter passes conformance tests. Groovex identity/docs must be verified;
+unknown APIs remain explicitly unsupported.
+P3 Identity/transfers/costs: venue market IDs; base/quote canonicalization; native-asset
+rules; chain IDs + contracts where applicable; supported network mapping; current
+deposit/withdraw status, limits, minimums and fees; source, timestamp, TTL. Exit: no
+candidate without fresh independent evidence. CG/CMC are discovery/cross-check only,
+never transfer-status authorities.
+P4 Agentic continuous scanner: event-driven workers, bounded queues, stale-data circuit
+breakers, candidate deduplication, persistence (Postgres/Redis selected by deployment),
+API + dashboard, replayable audit. Exit: restart-safe, idempotent, measurable service.
+P5 Release: unit/property/integration/replay/fault tests; secrets scan; dependency and
+container scan; structured logs, metrics and alerts; runbooks; 24h+ paper soak. Exit:
+zero unexplained sequence gaps, no stale/unsupported candidates, CI green, rollback tested.
+P6 optional execution: separate explicit authorization and threat-model review only;
+not part of current scope.
 
-## Hard release gates
+## Agent responsibilities
+- Discovery agent: enumerates spot markets and candidate directions.
+- Market-data agent: owns one venue adapter and book state; sequence gaps invalidate it.
+- Identity agent: matches canonical asset and chain/contract evidence.
+- Transfer agent: validates buy-side withdrawal, sell-side deposit, route, fee and limits.
+- Cost agent: fee schedule, fee currency, slippage, transfer/latency reserves.
+- Verification agent: deterministic hard gates; cannot be overruled by model output.
+- Risk agent: notional, max exposure, freshness, minimum profit and kill switch.
+- Supervisor: schedules/retries within budgets, combines versioned evidence, ranks top 10,
+  records all decisions and escalates missing/stale/conflicting evidence.
+- Operations agent: watches feed health, drift, reconnect storms, queue lag, API health,
+  alerts and can disable candidate publication; never turns a red signal green.
 
-1. Snapshot/delta continuity, checksums where offered, exchange-specific
-   sequencing, reconnection and resync proven against captured fixtures.
-2. Independent token identity on BOTH venues (contract + chain, or explicit
-   native-asset identity rules). Symbol equality is insufficient.
-3. Confirmed withdrawal enabled at buy venue, deposit enabled at sell venue,
-   SAME supported chain and sufficient fee/limit evidence.
-4. Source-backed, fresh taker fees and withdrawal fees, plus transfer/latency
-   reserve. Missing evidence means rejected, never assumed zero.
-5. Depth-weighted executable quantity at BOTH venues and positive net quote.
-6. Book timestamps within strict age limits; no crossed, empty or invalid
-   books. Clock skew and delayed exchange timestamps handled.
-7. Continuous 24h+ paper soak with recorded rejection reasons, reconnect
-   rates, feed latency, sequence gaps, uptime and reproducible decisions.
-8. Top-ten UI must distinguish *observed paper opportunities* from
-   executable trades. A profitable snapshot does not guarantee fill or
-   withdrawal completion.
+Agentic means autonomous *research and orchestration*, not uncontrolled financial actions.
+Every action has a budget, timeout, retry ceiling, evidence provenance, and audit record.
+LLM suggestions are advisory; all financial eligibility is deterministic.
 
-## Deployment/credentials
+## MCP integration enforcement
+- GitHub: source of truth for changes, CI, review, releases; no claiming tests pass without checks.
+- Remote Desktop Commander: optional authorized machine for commands and soak; unavailable
+  until a device is connected. Never assume a local environment exists.
+- CoinGecko + CoinMarketCap: asset discovery and independent metadata cross-checks only.
+- Coinversa Pulse + The Coin Daily: optional context/risk signals. These products cover
+  derivatives/market research, not target CEX spot book/transfer truth; cannot veto hard
+  verification positively or establish executable spread.
+- TokenOS dApp Builder: optional future dashboard/on-chain spec; not in scanner critical path.
+- OnChainDiligence: only inspect a concrete, explicitly proposed supported payment against
+  supplied rules; no payment or receipt creation unless a real authorized transaction exists.
+All connectors are optional specialists, not a quorum. Their evidence must include source,
+observation time, subject/venue/chain and confidence/limitations. Conflicts cause rejection
+or escalation. No external MCP data is allowed to override exchange-native truth.
 
-No keys for public feeds. Later request **read-only** exchange credentials
-via secret store for authenticated fee/account/transfer metadata when needed.
-Never commit API keys or enable withdrawals. Redis requires deployment
-endpoint/credentials if external. No live orders in this phase.
+## Required candidate audit fields
+candidate_id, venues, venue symbols, canonical asset, chain/network, contracts or native
+asset rule, book sequence/version, exchange and receive timestamps, book age, executable
+quantity, buy/sell VWAP and quote notionals, fee rate + fee currency + source + observed_at,
+withdrawal fee + asset + source + observed_at, deposit/withdraw enabled state + source +
+observed_at, net quote profit, risk policy version, rejection reason, agent decisions.
+A symbol-only match or a price-only spread is never enough.
+
+## Secrets and deployment
+Public feeds require no keys. Never store credentials in source or chat. Use a deployment
+secret manager; initially read-only permissions only. No withdrawal permission. Secrets,
+Redis/Postgres URLs and alert tokens are not committed. Do not ask user to paste secrets.
