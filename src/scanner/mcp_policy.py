@@ -16,6 +16,7 @@ class EvidenceRole(str, Enum):
     AGENT_COORDINATION = "agent_coordination"
     ENGINEERING = "engineering"
     POLICY_REVIEW = "policy_review"
+    INFRASTRUCTURE = "infrastructure"
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,10 @@ class ConnectorPolicy:
 
 
 MCP_POLICIES = (
+    ConnectorPolicy(
+        "Redis", EvidenceRole.INFRASTRUCTURE,
+        "Optional timestamped cache/stream, deduplication, queueing, and operational state. Every market record must preserve venue/source timestamps and local receive time with explicit TTL; cache misses, stale values, or Redis outages must never be hidden by treating cached data as live exchange truth.",
+    ),
     ConnectorPolicy(
         "GitHub", EvidenceRole.ENGINEERING,
         "Inspect source, pull requests, CI runs, tests and release evidence. Do not claim green CI without a successful run for the relevant head commit.",
