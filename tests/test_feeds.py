@@ -98,3 +98,21 @@ def test_cancel_and_drain_snapshot_task():
         assert task.cancelled()
 
     asyncio.run(check())
+
+
+
+def test_cancel_and_drain_consumes_completed_task_exception():
+    import asyncio
+    from scanner.feeds import cancel_and_drain
+
+    async def check():
+        async def failed_request():
+            raise RuntimeError("request failed")
+
+        task = asyncio.create_task(failed_request())
+        await asyncio.sleep(0)
+        assert task.done()
+        await cancel_and_drain(task)
+        assert task.exception() is not None
+
+    asyncio.run(check())
