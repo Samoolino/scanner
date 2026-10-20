@@ -38,6 +38,7 @@ def bootstrap_binance_book(state, snapshot, pending, received_at_ms,
                            max_buffered_events=BINANCE_MAX_BUFFERED_EVENTS):
     """Install a REST snapshot only if buffered WS updates prove sequence continuity."""
     if (type(max_buffered_events) is not int or max_buffered_events <= 0
+            or not isinstance(pending, list)
             or len(pending) > max_buffered_events):
         state.valid = False
         raise ResyncRequired("Binance bootstrap buffer limit exceeded")
