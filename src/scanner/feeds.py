@@ -112,8 +112,8 @@ async def binance_books(symbol="BTCUSDT"):
                                 raise ResyncRequired("Binance bootstrap buffer limit exceeded")
                         except asyncio.TimeoutError:
                             pass
-                        except Exception:
-                            # A bad frame/socket error must not leave the REST task
+                        except BaseException:
+                            # A bad frame/socket error or consumer cancellation must not leave the REST task
                             # running after this connection attempt is abandoned.
                             await cancel_and_drain(snapshot_task)
                             raise
