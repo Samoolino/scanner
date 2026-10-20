@@ -21,7 +21,7 @@ def decode_json_object(payload, venue: str) -> dict:
     try:
         event = json.loads(payload)
     except (json.JSONDecodeError, TypeError, UnicodeDecodeError) as exc:
-        raise ResyncRequired(f"invalid {venue} JSON frame") from exc
+        raise ResyncRequired(f"invalid JSON frame from {venue}") from exc
     if not isinstance(event, dict):
         raise ResyncRequired(f"{venue} frame must be a JSON object")
     return event
