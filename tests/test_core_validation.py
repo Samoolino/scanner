@@ -49,3 +49,31 @@ def test_rejects_non_finite_costs_and_quantity():
 def test_rejects_future_timestamp_and_invalid_age_limit():
     assert check(book("a", ts=1001), book("b"))["reason"] == "stale_orderbook"
     assert check(book("a"), book("b"), max_age=-1)["reason"] == "invalid_freshness_limit"
+
+
+def test_rejects_fresh_books_with_excessive_timestamp_skew():
+    buy = book("a", ts=1000)
+    sell = book("b", ts=800)
+    result = assess(buy, sell, D("1"), costs(), 1000, 500, True, True,
+                    max_timestamp_skew_ms=100)
+    assert result["reason"] == "orderbook_timestamp_skew"
+
+
+def test_accepts_fresh_books_within_timestamp_skew_limit():
+    buy = book("a", ts=1000)
+    sell = book("b", ts=950)
+    result = assess(buy, sell, D("1"), costs(), 1000, 100, True, True,
+                    max_timestamp_skew_ms=100)
+    assert result["reason"] != "orderbook_timestamp_skew"
+
+
+def test_rejects_boolean_book_timestamp():
+    result = assess(book("a", ts=True), book("b", ts=1000), D("1"), costs(),
+                    1000, 100, True, True)
+    assert result["reason"] == "stale_orderbook"
+
+
+def test_rejects_invalid_timestamp_skew_limit():
+    result = assess(book("a"), book("b"), D("1"), costs(), 1000, 100,
+                    True, True, max_timestamp_skew_ms=True)
+    assert result["reason"] == "invalid_freshness_limit"
