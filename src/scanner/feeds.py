@@ -16,6 +16,17 @@ BINANCE_MAX_BUFFERED_EVENTS = 20_000
 BINANCE_SNAPSHOT_TIMEOUT_SECONDS = 10
 
 
+def decode_json_object(payload, venue: str) -> dict:
+    """Decode one WebSocket frame and reject valid JSON that is not an object."""
+    try:
+        event = json.loads(payload)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError) as exc:
+        raise ResyncRequired(f"invalid {venue} JSON frame") from exc
+    if not isinstance(event, dict):
+        raise ResyncRequired(f"{venue} frame must be a JSON object")
+    return event
+
+
 def bootstrap_binance_book(state, snapshot, pending, received_at_ms,
                            max_buffered_events=BINANCE_MAX_BUFFERED_EVENTS):
     """Install a REST snapshot only if buffered WS updates prove sequence continuity."""
@@ -74,7 +85,7 @@ async def binance_books(symbol="BTCUSDT"):
                         msg = await ws.receive(timeout=30)
                         if msg.type != aiohttp.WSMsgType.TEXT:
                             raise ResyncRequired("socket closed")
-                        return json.loads(msg.data)
+                        return decode_json_object(msg.data, "Binance")
 
                     snapshot_task = asyncio.create_task(
                         asyncio.wait_for(
@@ -126,7 +137,7 @@ async def bybit_books(symbol="BTCUSDT", depth=50):
                     async for msg in ws:
                         if msg.type != aiohttp.WSMsgType.TEXT:
                             raise ResyncRequired("socket closed")
-                        event = json.loads(msg.data)
+                        event = decode_json_object(msg.data, "Bybit")
                         if event.get("topic") != f"orderbook.{depth}.{symbol}":
                             continue
                         state.message(event, received_at_ms=int(time.time() * 1000))
