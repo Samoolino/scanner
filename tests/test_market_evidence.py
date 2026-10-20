@@ -85,3 +85,43 @@ def test_malformed_identity_metadata_fails_closed_without_exception():
         asset("binance"), malformed, now_ms=10000
     )
     assert result == {"comparable": False, "reason": "asset_identity_unverified"}
+
+
+
+def test_malformed_market_text_fields_fail_closed_without_exception():
+    from dataclasses import replace
+
+    valid = snapshot("binance", "10", "1000")
+    other = snapshot("bybit", "10.5", "2000")
+    for malformed in (
+        replace(valid, venue=None),
+        replace(valid, symbol=None),
+        replace(valid, source=None),
+    ):
+        result = compare_live_markets(
+            malformed, other, asset("binance"), asset("bybit"), now_ms=10000
+        )
+        assert result == {"comparable": False, "reason": "market_price_stale"}
+
+
+def test_boolean_timestamps_are_not_accepted_as_market_timestamps():
+    from dataclasses import replace
+
+    first = replace(snapshot("binance", "10", "1000"), observed_at_ms=True, received_at_ms=True)
+    second = replace(snapshot("bybit", "10.5", "2000"), observed_at_ms=1, received_at_ms=1)
+    result = compare_live_markets(
+        first, second, asset("binance", timestamp=1), asset("bybit", timestamp=1),
+        now_ms=1, market_ttl_ms=5000, metadata_ttl_ms=5000
+    )
+    assert result == {"comparable": False, "reason": "market_price_stale"}
+
+
+def test_malformed_market_symbol_fails_closed_without_exception():
+    from dataclasses import replace
+
+    malformed = replace(snapshot("bybit", "10.5", "2000"), symbol=None)
+    result = compare_live_markets(
+        snapshot("binance", "10", "1000"), malformed,
+        asset("binance"), asset("bybit"), now_ms=10000
+    )
+    assert result == {"comparable": False, "reason": "market_price_stale"}
