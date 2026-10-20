@@ -36,4 +36,3 @@ def test_invalid_bybit_timestamp_invalidates_book():
         state.message({"type": "delta", "ts": "bad", "data": {"u": 6, "b": [], "a": []}})
     with pytest.raises(ResyncRequired, match="not synchronized"):
         state.export()
-}
