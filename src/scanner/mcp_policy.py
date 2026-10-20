@@ -24,7 +24,7 @@ class ConnectorPolicy:
     role: EvidenceRole
     advisory_scope: str
     forbidden_authority: str = (
-        "Cannot establish order-book eligibility, cross-venue canonical asset identity, "
+        "Cannot establish order book eligibility, cross-venue canonical asset identity, "
         "transfer route/status, authoritative fee schedule, or authorize execution."
     )
     may_provide_spot_snapshot: bool = False
