@@ -16,6 +16,13 @@ BINANCE_MAX_BUFFERED_EVENTS = 20_000
 BINANCE_SNAPSHOT_TIMEOUT_SECONDS = 10
 
 
+async def cancel_and_drain(task):
+    """Cancel an abandoned background request and consume its terminal result."""
+    if not task.done():
+        task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
 def decode_json_object(payload, venue: str) -> dict:
     """Decode one WebSocket frame and reject valid JSON that is not an object."""
     try:
@@ -102,10 +109,14 @@ async def binance_books(symbol="BTCUSDT"):
                             event["_scanner_received_at_ms"] = int(time.time() * 1000)
                             pending.append(event)
                             if len(pending) > BINANCE_MAX_BUFFERED_EVENTS:
-                                snapshot_task.cancel()
                                 raise ResyncRequired("Binance bootstrap buffer limit exceeded")
                         except asyncio.TimeoutError:
                             pass
+                        except Exception:
+                            # A bad frame/socket error must not leave the REST task
+                            # running after this connection attempt is abandoned.
+                            await cancel_and_drain(snapshot_task)
+                            raise
 
                     response = await snapshot_task
                     async with response:
