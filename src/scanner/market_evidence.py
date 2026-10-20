@@ -87,6 +87,8 @@ def compare_live_markets(
     if (first_identity is None or second_identity is None
             or first_identity.venue != first.venue
             or second_identity.venue != second.venue
+            or first_identity.symbol.strip().upper() != first.symbol.strip().upper()
+            or second_identity.symbol.strip().upper() != second.symbol.strip().upper()
             or _base_asset(first_identity.symbol) != first_base
             or _base_asset(second_identity.symbol) != second_base
             or not verified_identity(first_identity, second_identity, now_ms, metadata_ttl_ms)):
