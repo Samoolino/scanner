@@ -37,7 +37,8 @@ def decode_json_object(payload, venue: str) -> dict:
 def bootstrap_binance_book(state, snapshot, pending, received_at_ms,
                            max_buffered_events=BINANCE_MAX_BUFFERED_EVENTS):
     """Install a REST snapshot only if buffered WS updates prove sequence continuity."""
-    if max_buffered_events <= 0 or len(pending) > max_buffered_events:
+    if (type(max_buffered_events) is not int or max_buffered_events <= 0
+            or len(pending) > max_buffered_events):
         state.valid = False
         raise ResyncRequired("Binance bootstrap buffer limit exceeded")
     try:
