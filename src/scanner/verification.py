@@ -141,13 +141,26 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
         return {"eligible": False, "reason": "asset_identity_unverified"}
     if not route_ok:
         return {"eligible": False, "reason": "transfer_route_unverified"}
-    if not buy_fee or not sell_fee or not all((
-            buy_fee.source, sell_fee.source,
-            fresh(buy_fee.verified_at_ms, now_ms, metadata_ttl_ms),
-            fresh(sell_fee.verified_at_ms, now_ms, metadata_ttl_ms))):
+    fee_records = (buy_fee, sell_fee)
+    if not all(isinstance(record, FeeEvidence) for record in fee_records):
+        return {"eligible": False, "reason": "trading_fee_unverified"}
+    if not all(
+        isinstance(record.venue, str) and record.venue.strip()
+        and isinstance(record.source, str) and record.source.strip()
+        and fresh(record.verified_at_ms, now_ms, metadata_ttl_ms)
+        for record in fee_records
+    ):
         return {"eligible": False, "reason": "trading_fee_unverified"}
     if buy_fee.venue != buy.venue or sell_fee.venue != sell.venue:
         return {"eligible": False, "reason": "trading_fee_venue_mismatch"}
+    try:
+        buy_rate = Decimal(str(buy_fee.taker_rate))
+        sell_rate = Decimal(str(sell_fee.taker_rate))
+    except (InvalidOperation, TypeError, ValueError):
+        return {"eligible": False, "reason": "invalid_trading_fee"}
+    if not all(rate.is_finite() and Decimal("0") <= rate < Decimal("1")
+               for rate in (buy_rate, sell_rate)):
+        return {"eligible": False, "reason": "invalid_trading_fee"}
     # Current P&L math applies taker fees to quote notional. Reject base-token,
     # exchange-token, or unknown fee currencies rather than silently misprice them.
     buy_quote_currency = _quote_currency(buy.symbol)
@@ -181,11 +194,8 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
             or amount < min_withdrawal or amount > max_withdrawal
             or received_amount < min_deposit or received_amount > max_deposit):
         return {"eligible": False, "reason": "transfer_amount_out_of_limits"}
-    if not (Decimal("0") <= buy_fee.taker_rate < 1
-            and Decimal("0") <= sell_fee.taker_rate < 1):
-        return {"eligible": False, "reason": "invalid_trading_fee"}
-    return assess(buy, sell, amount, Costs(buy_fee.taker_rate,
-                  sell_fee.taker_rate, withdrawal_fee,
+    return assess(buy, sell, amount, Costs(buy_rate,
+                  sell_rate, withdrawal_fee,
                   other_quote, reserve_quote), now_ms, book_ttl_ms, True, True)
 
 def top_ten(candidates: list[dict]) -> list[dict]:
