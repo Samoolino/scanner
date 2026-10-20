@@ -73,7 +73,7 @@ def executable(book: Book, side: str, base_quantity: Decimal) -> Decimal:
 
 def assess(buy: Book, sell: Book, quantity: Decimal, costs: Costs,
            now_ms: int, max_age_ms: int, same_asset_verified: bool,
-           transfer_verified: bool) -> dict:
+           transfer_verified: bool, max_timestamp_skew_ms: int = 250) -> dict:
     """Return an auditable candidate decision; assumes withdrawal fee is in base asset."""
     if not same_asset_verified:
         return {"eligible": False, "reason": "asset_identity_unverified"}
@@ -91,15 +91,20 @@ def assess(buy: Book, sell: Book, quantity: Decimal, costs: Costs,
     if (buy.bids[0][0] >= buy.asks[0][0]
             or sell.bids[0][0] >= sell.asks[0][0]):
         return {"eligible": False, "reason": "crossed_orderbook"}
-    if (not isinstance(max_age_ms, int) or max_age_ms < 0
-            or not isinstance(now_ms, int)):
+    if (not isinstance(max_age_ms, int) or isinstance(max_age_ms, bool)
+            or max_age_ms < 0 or not isinstance(now_ms, int)
+            or isinstance(now_ms, bool)
+            or not isinstance(max_timestamp_skew_ms, int)
+            or isinstance(max_timestamp_skew_ms, bool)
+            or max_timestamp_skew_ms < 0):
         return {"eligible": False, "reason": "invalid_freshness_limit"}
-    try:
-        timestamps = (int(buy.timestamp_ms), int(sell.timestamp_ms))
-    except (TypeError, ValueError, OverflowError):
+    timestamps = (buy.timestamp_ms, sell.timestamp_ms)
+    if any(not isinstance(ts, int) or isinstance(ts, bool) for ts in timestamps):
         return {"eligible": False, "reason": "stale_orderbook"}
     if any(ts < 0 or ts > now_ms or now_ms - ts > max_age_ms for ts in timestamps):
         return {"eligible": False, "reason": "stale_orderbook"}
+    if abs(timestamps[0] - timestamps[1]) > max_timestamp_skew_ms:
+        return {"eligible": False, "reason": "orderbook_timestamp_skew"}
     if not _finite_decimal(quantity) or D(str(quantity)) <= 0:
         return {"eligible": False, "reason": "invalid_quantity"}
     cost_values = (costs.buy_fee_rate, costs.sell_fee_rate, costs.withdrawal_base,
