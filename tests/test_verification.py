@@ -146,3 +146,27 @@ def test_fresh_rejects_boolean_or_invalid_clock_inputs():
     assert not fresh(1000, 1000, True)
     assert not fresh(1000, 1000, -1)
     assert not fresh("1000", 1000, 100)
+
+
+def test_fee_boolean_timestamps_fail_closed():
+    result = check(identity("buy"), identity("sell"), route(),
+                   fee("buy", ts=True), fee("sell"))
+    assert not result["eligible"]
+    assert result["reason"] == "trading_fee_unverified"
+
+
+def test_fee_malformed_provenance_fails_closed():
+    malformed = FeeEvidence("buy", D("0.001"), 123, 1000, "USDT")
+    result = check(identity("buy"), identity("sell"), route(),
+                   malformed, fee("sell"))
+    assert not result["eligible"]
+    assert result["reason"] == "trading_fee_unverified"
+
+
+def test_fee_rates_must_be_finite_numeric_values():
+    for invalid_rate in ("not-a-rate", True, D("NaN"), D("Infinity"), D("-0.001"), D("1")):
+        result = check(identity("buy"), identity("sell"), route(),
+                       FeeEvidence("buy", invalid_rate, "exchange_api", 1000, "USDT"),
+                       fee("sell"))
+        assert not result["eligible"]
+        assert result["reason"] == "invalid_trading_fee"
