@@ -78,3 +78,21 @@ def test_websocket_invalid_json_is_resync_error():
 
     with pytest.raises(ResyncRequired, match="invalid JSON"):
         decode_json_object("{not-json", venue="binance")
+
+
+
+@pytest.mark.asyncio
+async def test_cancel_and_drain_snapshot_task():
+    import asyncio
+    from scanner.feeds import cancel_and_drain
+
+    started = asyncio.Event()
+
+    async def pending_request():
+        started.set()
+        await asyncio.Event().wait()
+
+    task = asyncio.create_task(pending_request())
+    await started.wait()
+    await cancel_and_drain(task)
+    assert task.cancelled()
