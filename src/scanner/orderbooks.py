@@ -130,7 +130,10 @@ class BybitDepth(DepthState):
                 self.valid = False
                 raise ResyncRequired("invalid Bybit snapshot payload") from exc
             return
-        if message_type != "delta" or not self.valid or self.sequence is None:
+        if message_type != "delta":
+            self.valid = False
+            raise ResyncRequired("Bybit snapshot required")
+        if not self.valid or self.sequence is None:
             raise ResyncRequired("Bybit snapshot required")
         if update <= self.sequence:
             return
