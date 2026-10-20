@@ -37,7 +37,10 @@ def bootstrap_binance_book(state, snapshot, pending, received_at_ms,
 
     state.snapshot(snapshot["bids"], snapshot["asks"], last_update_id, received_at_ms)
     for event in pending:
-        state.delta(event)
+        state.delta(
+            event,
+            received_at_ms=event.get("_scanner_received_at_ms", received_at_ms),
+        )
     return state.export()
 
 
@@ -72,7 +75,8 @@ async def binance_books(symbol="BTCUSDT"):
                     while not snapshot_task.done():
                         try:
                             event = await asyncio.wait_for(receive(), timeout=0.25)
-                            event[\"_scanner_received_at_ms\"] = int(time.time() * 1000)\n                            pending.append(event)
+                            event["_scanner_received_at_ms"] = int(time.time() * 1000)
+                            pending.append(event)
                             if len(pending) > BINANCE_MAX_BUFFERED_EVENTS:
                                 snapshot_task.cancel()
                                 raise ResyncRequired("Binance bootstrap buffer limit exceeded")
@@ -90,10 +94,11 @@ async def binance_books(symbol="BTCUSDT"):
                     yield state.export()
                     while True:
                         event = await receive()
-                        state.delta(event)
+                        state.delta(event, received_at_ms=int(time.time() * 1000))
                         yield state.export()
         except (aiohttp.ClientError, asyncio.TimeoutError, ResyncRequired, KeyError, ValueError):
             await asyncio.sleep(2)
+
 
 async def bybit_books(symbol="BTCUSDT", depth=50):
     import aiohttp
@@ -111,7 +116,7 @@ async def bybit_books(symbol="BTCUSDT", depth=50):
                         event = json.loads(msg.data)
                         if event.get("topic") != f"orderbook.{depth}.{symbol}":
                             continue
-                        state.message(event)
+                        state.message(event, received_at_ms=int(time.time() * 1000))
                         yield state.export(depth)
         except (aiohttp.ClientError, asyncio.TimeoutError, ResyncRequired, KeyError, ValueError):
             await asyncio.sleep(2)
