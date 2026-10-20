@@ -98,7 +98,8 @@ class BinanceDepth(DepthState):
             self.valid = False
             raise ResyncRequired("Binance sequence gap")
         try:
-            timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None\n                         else self._integer(event["E"], "event timestamp"))
+            timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None
+                         else self._integer(event["E"], "event timestamp"))
             self._apply(event["b"], event["a"])
         except (KeyError, TypeError) as exc:
             self.valid = False
