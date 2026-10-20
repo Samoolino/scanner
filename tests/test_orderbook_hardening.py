@@ -108,3 +108,12 @@ def test_unexpected_bybit_type_with_snapshot_like_update_id_is_rejected():
         state.message({"type": "unknown", "ts": 1001, "data": {"u": 1, "b": [["99", "1"]], "a": [["101", "1"]]}})
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+
+@pytest.mark.parametrize("bad_depth", [True, False, 1.5, -0.5, "2", None])
+def test_export_rejects_non_positive_integer_depth(bad_depth):
+    state = BinanceDepth("binance", "BTCUSDT")
+    state.snapshot([["100", "1"]], [["101", "1"]], 10, 1000)
+    with pytest.raises(ValueError, match="depth"):
+        state.export(bad_depth)
