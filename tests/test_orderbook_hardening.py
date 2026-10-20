@@ -45,3 +45,18 @@ def test_bybit_bad_delta_invalidates_book():
         state.message({"type": "delta", "ts": 1001, "data": {"u": 6, "b": [["99", "-1"]], "a": []}})
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+
+def test_binance_freshness_uses_local_receive_timestamp():
+    state = BinanceDepth("binance", "BTCUSDT")
+    state.snapshot([["100", "1"]], [["101", "1"]], 10, 1000)
+    state.delta({"U": 11, "u": 11, "E": 900_000, "b": [], "a": []}, received_at_ms=1002)
+    assert state.timestamp_ms == 1002
+
+
+def test_bybit_freshness_uses_local_receive_timestamp():
+    state = BybitDepth("bybit", "BTCUSDT")
+    state.message({"type": "snapshot", "ts": 900_000, "data": {"u": 5, "b": [["100", "1"]], "a": [["101", "1"]]}}, received_at_ms=1000)
+    state.message({"type": "delta", "ts": 900_001, "data": {"u": 6, "b": [], "a": []}}, received_at_ms=1002)
+    assert state.timestamp_ms == 1002
