@@ -56,6 +56,8 @@ def executable(book: Book, side: str, base_quantity: Decimal) -> Decimal:
     if side not in ("buy", "sell") or not _finite_decimal(base_quantity) or D(str(base_quantity)) <= 0:
         raise ValueError("Invalid quantity or side")
     levels = book.asks if side == "buy" else book.bids
+    if not _valid_levels(levels, descending=(side == "sell")):
+        raise ValueError("Invalid orderbook level ordering or values")
     remaining = D(str(base_quantity))
     quote = D("0")
     for raw_price, raw_available in levels:
