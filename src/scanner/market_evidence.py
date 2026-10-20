@@ -84,7 +84,15 @@ def compare_live_markets(
         return {"comparable": False, "reason": "market_mismatch"}
     if first.venue == second.venue:
         return {"comparable": False, "reason": "venue_mismatch"}
-    if (first_identity is None or second_identity is None
+    if (first_identity is None or second_identity is None:
+        return {"comparable": False, "reason": "asset_identity_unverified"}
+    identity_text = (
+        first_identity.venue, first_identity.symbol, first_identity.chain_id,
+        first_identity.contract, first_identity.source, second_identity.venue,
+        second_identity.symbol, second_identity.chain_id, second_identity.contract,
+        second_identity.source,
+    )
+    if (not all(isinstance(value, str) and value.strip() for value in identity_text)
             or first_identity.venue != first.venue
             or second_identity.venue != second.venue
             or first_identity.symbol.strip().upper() != first.symbol.strip().upper()
