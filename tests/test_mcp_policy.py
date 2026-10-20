@@ -13,3 +13,15 @@ def test_research_connectors_cannot_prove_exchange_transfer_state():
         assert not may_accept_as_exchange_truth(name)
         policy = policy_for(name)
         assert policy and not policy.may_authorize_execution
+
+
+def test_coingecko_and_cmc_are_advisors_not_exchange_truth():
+    for name in ("CoinGecko", "CoinMarketCap"):
+        policy = policy_for(name)
+        assert policy is not None
+        assert policy.advisory_scope
+        assert "candidate" in policy.advisory_scope.lower()
+        assert "order book" in policy.forbidden_authority.lower()
+        assert not policy.may_prove_spot_liquidity
+        assert not policy.may_prove_transfer_status
+        assert not policy.may_authorize_execution
