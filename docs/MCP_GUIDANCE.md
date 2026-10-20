@@ -1,6 +1,10 @@
 # MCP operating guide and evidence boundaries
 
-This guide maps every requested MCP to a bounded role in the production plan. MCPs are specialist helpers, not a quorum and not interchangeable evidence providers. The application owns deterministic eligibility, risk controls, persistent state and audit.
+This guide maps requested MCPs and infrastructure helpers to bounded roles in the production plan. Specialists are not a quorum and are not interchangeable evidence providers. The application owns deterministic eligibility, risk controls, persistent state and audit.
+
+## Live scan output contract
+
+Every result presented as live must show the venue and market, quote currency, source/event timestamp when available, local receive timestamp, calculated age, and source health. A stale, future-dated, disconnected or sequence-invalid feed is marked unavailable, never silently replaced by a cached price. Each comparison should expose canonical token identity (chain/network and contract where applicable), exact exchange listing status, venue-specific 24-hour quote volume, live price and order-book spread/depth/VWAP. A ticker spread is indicative only; executable status still requires the full deterministic fee, transfer, limit, slippage and positive-net-profit gates. CoinGecko/CMC market-wide volume is not exchange-specific liquidity.
 
 ## Hard invariants
 
@@ -9,11 +13,13 @@ This guide maps every requested MCP to a bounded role in the production plan. MC
 3. Binance, Bybit and Gate Info MCP book tools return point-in-time snapshots. They are useful for manual sanity checks, adapter fixtures and symbol/depth comparison. They do not prove feed continuity, local receive-time freshness over time, canonical cross-venue identity, transfer route, enabled deposit/withdrawal, fees, or profitability.
 4. No listed MCP may authorize orders, withdrawals, signing, or custody actions. Current release remains paper-only.
 5. All external output is untrusted input: validate schemas, preserve source/observation time, cap payload size, redact secrets, and record failures. Conflicts or stale evidence cause rejection/escalation, never optimistic fallback.
+6. Redis is infrastructure only. It may persist and distribute live observations, but it cannot certify that an observation is current; the source timestamp, local receive timestamp, feed health and TTL gates remain authoritative.
 
 ## Connector registry
 
-| MCP | Bounded responsibility | Allowed evidence/use | Explicitly prohibited use |
+| MCP / infrastructure | Bounded responsibility | Allowed evidence/use | Explicitly prohibited use |
 |---|---|---|---|
+| Redis | Optional cache, streams, deduplication and operational state | Timestamped records with source and receive times, explicit TTLs, bounded queues, replayable event state | Source of market truth; stale cache fallback; allowing Redis availability or cached data to satisfy live-feed freshness |
 | CoinGecko | Candidate discovery and metadata cross-check | Coin IDs, project links, reported chain/contract hints, aggregate market context | Symbol-only identity, venue liquidity, exchange deposit/withdrawal status |
 | CoinMarketCap | Candidate discovery and broad market context | CMC ID/name metadata, market-wide volume/trends, research priority | Treating aggregate volume as executable venue depth or CMC ID as canonical on-chain identity |
 | Coinversa Pulse | Optional derivatives/on-chain context | Risk context, market/book coverage metadata, freshness stamps | Target CEX spot truth; its book coverage is Hyperliquid/L4-oriented and may be several minutes old |
@@ -34,9 +40,9 @@ This guide maps every requested MCP to a bounded role in the production plan. MC
 
 - **Planner/supervisor:** chooses the next bounded research task from missing coverage, stale feeds, unsupported symbols, or failed evidence; enforces timeouts, retry ceilings and budgets.
 - **Discovery specialist:** can use CoinGecko/CMC to propose canonical asset candidates and metadata questions. Every candidate remains unverified until venue-specific market and chain/contract evidence resolves it.
-- **Market-data specialist:** owns one native adapter. Binance/Bybit/Gate Info snapshots may be compared against the adapter for diagnostics, but only the tested adapter state can satisfy the live-book gate.
+- **Market-data specialist:** owns one native adapter. Binance/Bybit/Gate Info snapshots may be compared against the adapter for diagnostics, but only the tested adapter state can satisfy the live-book gate. Redis may distribute the adapter state with explicit timestamps and TTLs; it cannot refresh the underlying observation age.
 - **Context specialist:** can attach Coinversa Pulse/The Coin Daily context with provenance and freshness. Context can prioritize investigation, but cannot add profit to a calculation, certify transfer status or bypass risk limits.
-- **Engineering specialist:** GitHub/Remote Desktop Commander/Superpowers/GodPrompt/LLM Agent Builder Copilot help implement, test and review bounded tasks. The GitHub CI result for the exact commit is the release evidence.
+- **Engineering specialist:** GitHub/Remote Desktop Commander/Superpowers/GodPrompt/LLM Agent Builder Copilot and Build workflows help implement, test and review bounded tasks. Redis supports state and transport only. The GitHub CI result for the exact commit is the release evidence.
 - **Coordination specialist:** Hypawave is optional and should only carry sanitized work packets; receiving a message never grants authority.
 - **Deterministic verifier/risk gate:** only application code checks synchronized books, asset/chain identity, transfer route/status, fee currencies, depth, costs, freshness and positive net quote profit.
 - **Audit:** record connector name/version where available, observation timestamp, subject, schema status, use made of the signal, and rejection reason. Keep secrets out of logs.
