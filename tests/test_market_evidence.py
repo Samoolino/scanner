@@ -65,3 +65,13 @@ def test_different_chain_or_contract_is_rejected():
         now_ms=10000
     )
     assert result == {"comparable": False, "reason": "asset_identity_unverified"}
+
+
+def test_market_symbol_must_match_verified_venue_identity():
+    mismatched = AssetIdentity("bybit", "ABC/BTC", "1", "0xabc", "bybit-registry", 10000)
+    result = compare_live_markets(
+        snapshot("binance", "10", "1000"),
+        snapshot("bybit", "10.5", "2000"),
+        asset("binance"), mismatched, now_ms=10000
+    )
+    assert result == {"comparable": False, "reason": "asset_identity_unverified"}
