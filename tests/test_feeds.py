@@ -222,3 +222,35 @@ def test_binance_feed_cancellation_drains_snapshot_request(monkeypatch):
         await feed.aclose()
 
     asyncio.run(check())
+
+
+
+def test_binance_bootstrap_recovers_after_sequence_gap_with_fresh_snapshot():
+    state = BinanceDepth("binance", "BTCUSDT")
+    initial_snapshot = {
+        "bids": [["100", "1"]],
+        "asks": [["101", "1"]],
+        "lastUpdateId": 10,
+    }
+    broken_pending = [
+        {"U": 11, "u": 11, "E": 1001, "b": [], "a": []},
+        {"U": 13, "u": 13, "E": 1003, "b": [], "a": []},
+    ]
+    with pytest.raises(ResyncRequired, match="sequence gap"):
+        bootstrap_binance_book(state, initial_snapshot, broken_pending, received_at_ms=1000)
+    with pytest.raises(ResyncRequired):
+        state.export()
+
+    fresh_snapshot = {
+        "bids": [["99", "2"]],
+        "asks": [["102", "3"]],
+        "lastUpdateId": 20,
+    }
+    fresh_pending = [
+        {"U": 21, "u": 21, "E": 1004, "b": [["99", "4"]], "a": []},
+    ]
+    book = bootstrap_binance_book(state, fresh_snapshot, fresh_pending, received_at_ms=1004)
+
+    assert state.sequence == 21
+    assert book.bids[0][1] == __import__("decimal").Decimal("4")
+    assert book.asks[0][0] == __import__("decimal").Decimal("102")
