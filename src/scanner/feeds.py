@@ -41,7 +41,7 @@ async def binance_books(symbol="BTCUSDT"):
                     for event in pending:
                         state.delta(event)
                     # If buffered events did not bridge snapshot, resync rather than trust an unbridged book.
-                    if not pending or max(int(e["u"]) for e in pending) <= state.sequence:
+                    if not pending or not any(int(e["U"]) <= int(snap["lastUpdateId"]) + 1 <= int(e["u"]) for e in pending):
                         raise ResyncRequired("snapshot bridge not established")
                     yield state.export()
                     while True:
