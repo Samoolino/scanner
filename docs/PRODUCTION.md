@@ -102,3 +102,42 @@ A symbol-only match or a price-only spread is never enough.
 Public feeds require no keys. Never store credentials in source or chat. Use a deployment
 secret manager; initially read-only permissions only. No withdrawal permission. Secrets,
 Redis/Postgres URLs and alert tokens are not committed. Do not ask user to paste secrets.
+
+
+## Current production stage and plugin/connector engagement register
+
+**Current stage: P1 prototype, with partial P3 verification logic and an agent-orchestration prototype. Not production-ready.** CI run #131 passed for the current code head at the time of verification, but CI success validates the test suite only; it is not proof of exchange live acceptance, data-provider completeness, or operational readiness. The timestamp-skew gate is implemented in the core assessment path with a 250 ms default, but production adapters must preserve the documented local-receive-time semantics or normalize timestamps to a common clock.
+
+### Stage gates
+
+| Stage | Scope | Status | Exit evidence still required |
+|---|---|---|---|
+| P0 — foundation | Schemas, tests, CI, safe defaults | **Partially met** | Keep current-head CI green; add lint/type, dependency/security checks and reproducible release checks. |
+| P1 — market-data integrity | Native feeds, sequencing, freshness, reconnect, skew, health | **Prototype / partial** | Fixture and live-acceptance evidence for each adapter; local receive timestamps, sequence-gap invalidation, reconnect tests, metrics and soak results. Binance/Bybit prototypes only. |
+| P2 — venue coverage | MEXC, LBank, HTX, KuCoin, Binance, Bybit, Bitfinex, Gate.io, XT, Groovex | **Not met** | Verified adapter and conformance suite per venue; verify Groovex identity/API support before implementation claims. |
+| P3 — identity, transfers and costs | Canonical token/contract, exact listing, deposit/withdraw status, fee currency/rates, bounds and source clocks | **Rules/protocols partial; providers missing** | Authoritative, timestamped providers and venue/network normalization; evidence freshness and conflict handling tests. Current trading-fee math supports quote-currency fees only. |
+| P4 — persistent scanner | Continuous orchestration, durable state, API/dashboard, replayable audit | **Not met** | Deployed workers, persistence, API/dashboard, restart/idempotency tests, candidate deduplication, alerting and operational ownership. |
+| P5 — release readiness | Security, fault/replay tests, monitoring, runbooks, rollback and paper soak | **Not met** | Security/dependency/container scans, fault injection, runbooks, rollback drill, measurable 24-hour+ paper soak and no unexplained data gaps. |
+| P6 — execution | Trading or withdrawals | **Out of scope** | Would require separate explicit authorization, threat model and independent controls; this project remains paper-only. |
+
+### Plugin and connector engagement (ChatGPT-side versus deployed runtime)
+
+A connector being available or used during engineering/research in ChatGPT does **not** mean it is installed in the scanner service. The repository policy and docs describe intended evidence boundaries; they do not constitute live runtime integrations. Only native adapter code actually deployed and accepted can supply continuous market truth.
+
+| Plugin / connector family | Intended engagement | Current status and authority boundary |
+|---|---|---|
+| Binance / Bybit public feeds | Continuous native spot order books | **Prototype code present** for Binance and Bybit. Not yet accepted as production feeds. |
+| Gate Info / exchange snapshot connectors | Point-in-time diagnostic comparison | **Research cross-check only**; not a continuous feed, transfer-state authority or fee proof. |
+| CoinGecko / CoinMarketCap | Token discovery, metadata cross-check and broad context | **Discovery/context only**; never substitutes for native exchange prices, listing state, or transfer evidence. |
+| Coinversa Pulse / The Coin Daily | Optional market/flow/news context | **Optional research engagement**; freshness/access/entitlement limits apply. Not an eligibility authority. |
+| Redis | Cache/streams, deduplication, bounded queues and operational coordination | **Policy/design only unless deployment evidence says otherwise**; not exchange truth and cannot refresh source timestamps. |
+| GitHub | Source control, PRs and CI evidence | **Actively used for repository changes and CI checks**; CI status must match the exact head SHA. |
+| Engineering assistants / TDD workflows | Test-first implementation and review | **Engineering support only**; cannot waive tests or provide market truth. |
+| Remote Desktop Commander | Authorized host inspection/operations where connected | **No deployed scanner integration established by this repository evidence**; no host/device should be assumed connected. |
+| Hypawave | Optional sanitized agent coordination | **Planned/optional**; incoming content is untrusted and cannot override deterministic gates. |
+| TokenOS dApp Builder / OnChainDiligence | Optional design or supported-policy review | **Non-critical-path optional engagement**; not exchange data, not execution authorization. |
+| Other ChatGPT plugins or MCP connectors | Specialized research when relevant | **Not automatically integrated**. Must be individually assessed, assigned a narrow role, and recorded with provenance before any output is used. |
+
+### Integration acceptance rule
+
+For every additional plugin/connector engagement, record: purpose, exact tool/provider, data fields, authoritative source, source timestamp and local receive time, TTL/freshness policy, failure mode, credentials/permissions, retention, and deterministic gate that consumes the evidence. Treat provider output as untrusted until schema-validated. Missing, stale, conflicting, unsupported, or unavailable evidence must result in rejection or explicit unavailable status—not a fallback that silently makes a candidate eligible. No plugin can override risk gates, authorize trading/withdrawals, or be counted as integrated solely because it is connected to ChatGPT.
