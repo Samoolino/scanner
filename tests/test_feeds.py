@@ -141,3 +141,22 @@ def test_cancel_and_drain_waits_for_task_finalizer():
         assert finalized.is_set()
 
     asyncio.run(check())
+
+
+
+def test_binance_bootstrap_gap_after_bridge_invalidates_book():
+    state = BinanceDepth("binance", "BTCUSDT")
+    snapshot = {
+        "bids": [["100", "1"]],
+        "asks": [["101", "1"]],
+        "lastUpdateId": 10,
+    }
+    pending = [
+        {"U": 11, "u": 11, "E": 1001, "b": [], "a": []},
+        {"U": 13, "u": 13, "E": 1003, "b": [["100", "2"]], "a": []},
+    ]
+
+    with pytest.raises(ResyncRequired, match="sequence gap"):
+        bootstrap_binance_book(state, snapshot, pending, received_at_ms=1000)
+    with pytest.raises(ResyncRequired, match="synchronized"):
+        state.export()
