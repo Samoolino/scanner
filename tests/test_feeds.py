@@ -273,3 +273,19 @@ def test_binance_bootstrap_rejects_invalid_buffer_limit(bad_limit):
         )
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+
+def test_binance_bootstrap_rejects_non_sequence_pending_and_invalidates_book():
+    state = BinanceDepth("binance", "BTCUSDT")
+    state.snapshot([["100", "1"]], [["101", "1"]], 10, 1000)
+
+    with pytest.raises(ResyncRequired, match="buffer limit"):
+        bootstrap_binance_book(
+            state,
+            {"bids": [["100", "1"]], "asks": [["101", "1"]], "lastUpdateId": 10},
+            None,
+            received_at_ms=1000,
+        )
+    with pytest.raises(ResyncRequired):
+        state.export()
