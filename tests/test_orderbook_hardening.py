@@ -79,3 +79,12 @@ def test_binance_rejects_boolean_update_ids_and_invalidates_book():
         state.delta({"U": True, "u": 11, "E": 1001, "b": [], "a": []})
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+def test_malformed_bybit_snapshot_invalidates_previous_book():
+    state = BybitDepth("bybit", "BTCUSDT")
+    state.message({"type": "snapshot", "ts": 1000, "data": {"u": 5, "b": [["100", "1"]], "a": [["101", "1"]]}})
+    with pytest.raises(ResyncRequired):
+        state.message({"type": "snapshot", "ts": 1001, "data": {"u": 6, "b": [["99", "1"]]}})
+    with pytest.raises(ResyncRequired):
+        state.export()
