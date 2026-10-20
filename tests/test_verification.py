@@ -120,3 +120,29 @@ def test_transfer_quantity_must_fit_withdrawal_and_deposit_limits():
     assert too_small["reason"] == "transfer_amount_out_of_limits"
     assert too_large["reason"] == "transfer_amount_out_of_limits"
     assert deposit_too_small_after_fee["reason"] == "transfer_amount_out_of_limits"
+
+
+def test_identity_boolean_timestamps_are_rejected():
+    assert not verified_identity(identity("buy", ts=True), identity("sell"), 1000, 100)
+    assert not verified_identity(identity("buy"), identity("sell", ts=False), 1000, 100)
+
+
+def test_identity_malformed_text_fields_fail_closed_without_exception():
+    malformed = AssetIdentity("buy", "ABC", 123, "0xabc", "exchange_api", 1000)
+    assert not verified_identity(malformed, identity("sell"), 1000, 100)
+
+
+def test_identity_rejects_non_string_venue_and_empty_provenance():
+    malformed_venue = AssetIdentity(123, "ABC", "eip155:1", "0xabc", "exchange_api", 1000)
+    missing_source = AssetIdentity("sell", "ABC", "eip155:1", "0xabc", "", 1000)
+    assert not verified_identity(identity("buy"), malformed_venue, 1000, 100)
+    assert not verified_identity(identity("buy"), missing_source, 1000, 100)
+
+
+def test_fresh_rejects_boolean_or_invalid_clock_inputs():
+    from scanner.verification import fresh
+    assert not fresh(True, 1000, 100)
+    assert not fresh(1000, False, 100)
+    assert not fresh(1000, 1000, True)
+    assert not fresh(1000, 1000, -1)
+    assert not fresh("1000", 1000, 100)
