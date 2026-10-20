@@ -79,7 +79,7 @@ class DepthState:
 
 
 class BinanceDepth(DepthState):
-    def delta(self, event: dict):
+    def delta(self, event: dict, received_at_ms: int | None = None):
         if not self.valid or self.sequence is None:
             raise ResyncRequired("snapshot required")
         try:
@@ -98,7 +98,7 @@ class BinanceDepth(DepthState):
             self.valid = False
             raise ResyncRequired("Binance sequence gap")
         try:
-            timestamp = self._integer(event["E"], "event timestamp")
+            timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None\n                         else self._integer(event["E"], "event timestamp"))
             self._apply(event["b"], event["a"])
         except (KeyError, TypeError) as exc:
             self.valid = False
@@ -109,12 +109,12 @@ class BinanceDepth(DepthState):
 
 
 class BybitDepth(DepthState):
-    def message(self, event: dict):
+    def message(self, event: dict, received_at_ms: int | None = None):
         try:
             data = event["data"]
             message_type = event["type"]
             update = self._integer(data["u"], "update ID")
-            timestamp = self._integer(event["ts"], "timestamp")
+            timestamp = (self._integer(received_at_ms, "receive timestamp") if received_at_ms is not None\n                         else self._integer(event["ts"], "timestamp"))
         except (KeyError, TypeError) as exc:
             self.valid = False
             raise ResyncRequired("invalid Bybit message") from exc
