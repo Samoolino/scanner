@@ -66,8 +66,8 @@ class DepthState:
     def export(self, depth: int = 200) -> Book:
         if not self.valid or self.timestamp_ms is None:
             raise ResyncRequired("book not synchronized")
-        if depth <= 0:
-            raise ValueError("depth must be positive")
+        if type(depth) is not int or depth <= 0:
+            raise ValueError("depth must be a positive integer")
         bids = tuple(sorted(self.bids.items(), reverse=True)[:depth])
         asks = tuple(sorted(self.asks.items())[:depth])
         if not bids or not asks or bids[0][0] >= asks[0][0]:
