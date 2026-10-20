@@ -3,7 +3,7 @@
 Unknown, stale, or disabled facts are NEVER interpreted as verified.
 """
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from scanner.core import Book, Costs, assess
 
 @dataclass(frozen=True)
@@ -25,6 +25,14 @@ class TransferRoute:
     withdrawal_fee_base: Decimal
     source: str
     verified_at_ms: int
+    # Native route identifier must be explicit and match the canonical chain ID.
+    network_id: str = ""
+    # Withdrawal fees and transfer bounds are denominated in base-asset units.
+    withdrawal_fee_currency: str = ""
+    min_withdrawal_base: Decimal | None = None
+    max_withdrawal_base: Decimal | None = None
+    min_deposit_base: Decimal | None = None
+    max_deposit_base: Decimal | None = None
 
 @dataclass(frozen=True)
 class FeeEvidence:
@@ -51,23 +59,60 @@ def verified_identity(a: AssetIdentity | None, b: AssetIdentity | None,
             and a.contract.strip().lower() == b.contract.strip().lower()
             and a.venue != b.venue)
 
+def _valid_transfer_limits(route: TransferRoute) -> bool:
+    """Require complete, finite, ordered limits; unknown bounds fail closed."""
+    try:
+        fee = Decimal(str(route.withdrawal_fee_base))
+        minimums = (
+            Decimal(str(route.min_withdrawal_base)),
+            Decimal(str(route.min_deposit_base)),
+        )
+        maximums = (
+            Decimal(str(route.max_withdrawal_base)),
+            Decimal(str(route.max_deposit_base)),
+        )
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    values = (fee, *minimums, *maximums)
+    if not all(value.is_finite() for value in values) or fee < 0:
+        return False
+    return all(minimum >= 0 and maximum > 0 and minimum <= maximum
+               for minimum, maximum in zip(minimums, maximums))
+
+
 def verified_route(route: TransferRoute | None, buy_venue: str, sell_venue: str,
                    chain_id: str, now_ms: int, ttl_ms: int) -> bool:
-    return bool(route and route.source and route.source_venue == buy_venue
-                and route.destination_venue == sell_venue
-                and route.chain_id.lower() == chain_id.lower()
-                and route.withdrawals_enabled and route.deposits_enabled
-                and route.withdrawal_fee_base >= 0
-                and fresh(route.verified_at_ms, now_ms, ttl_ms))
+    if route is None:
+        return False
+    text_fields = (route.source, route.source_venue, route.destination_venue,
+                   route.chain_id, route.network_id, route.withdrawal_fee_currency,
+                   chain_id)
+    return bool(
+        all(isinstance(value, str) and value.strip() for value in text_fields)
+        and route.source_venue == buy_venue
+        and route.destination_venue == sell_venue
+        and route.chain_id.strip().lower() == chain_id.strip().lower()
+        and route.network_id.strip().lower() == chain_id.strip().lower()
+        and route.withdrawals_enabled is True
+        and route.deposits_enabled is True
+        and _valid_transfer_limits(route)
+        and fresh(route.verified_at_ms, now_ms, ttl_ms)
+    )
 
-def _quote_currency(symbol: str) -> str | None:
-    """Parse only the scanner canonical BASE/QUOTE symbol form."""
+def _base_currency(symbol: str) -> str | None:
     if not isinstance(symbol, str) or symbol.count("/") != 1:
         return None
     base, quote = (part.strip().upper() for part in symbol.split("/"))
     if not base or not quote or base == quote:
         return None
-    return quote
+    return base
+
+
+def _quote_currency(symbol: str) -> str | None:
+    """Parse only the scanner canonical BASE/QUOTE symbol form."""
+    if _base_currency(symbol) is None:
+        return None
+    return symbol.split("/")[1].strip().upper()
 
 def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
                       buy_asset: AssetIdentity | None, sell_asset: AssetIdentity | None,
@@ -101,9 +146,29 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
     # notionals as if they shared a common unit of account.
     if buy_quote_currency != sell_quote_currency:
         return {"eligible": False, "reason": "market_mismatch"}
-    if (buy_fee.fee_currency.strip().upper() != buy_quote_currency
+    if (not isinstance(buy_fee.fee_currency, str)
+            or not isinstance(sell_fee.fee_currency, str)
+            or buy_fee.fee_currency.strip().upper() != buy_quote_currency
             or sell_fee.fee_currency.strip().upper() != sell_quote_currency):
         return {"eligible": False, "reason": "trading_fee_currency_unverified"}
+    base_currency = _base_currency(buy.symbol)
+    if (base_currency is None or not isinstance(route.withdrawal_fee_currency, str)
+            or route.withdrawal_fee_currency.strip().upper() != base_currency):
+        return {"eligible": False, "reason": "withdrawal_fee_currency_unverified"}
+    try:
+        amount = Decimal(str(quantity))
+        withdrawal_fee = Decimal(str(route.withdrawal_fee_base))
+        min_withdrawal = Decimal(str(route.min_withdrawal_base))
+        max_withdrawal = Decimal(str(route.max_withdrawal_base))
+        min_deposit = Decimal(str(route.min_deposit_base))
+        max_deposit = Decimal(str(route.max_deposit_base))
+    except (InvalidOperation, TypeError, ValueError):
+        return {"eligible": False, "reason": "transfer_amount_out_of_limits"}
+    received_amount = amount - withdrawal_fee
+    if (not amount.is_finite() or amount <= 0
+            or amount < min_withdrawal or amount > max_withdrawal
+            or received_amount < min_deposit or received_amount > max_deposit):
+        return {"eligible": False, "reason": "transfer_amount_out_of_limits"}
     if not (Decimal("0") <= buy_fee.taker_rate < 1
             and Decimal("0") <= sell_fee.taker_rate < 1):
         return {"eligible": False, "reason": "invalid_trading_fee"}
