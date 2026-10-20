@@ -4,8 +4,8 @@ from scanner.verification import (
     AssetIdentity, TransferRoute, FeeEvidence, evaluate_verified,
     verified_identity, top_ten)
 
-def book(venue, bid, ask):
-    return Book(venue, "ABC/USDT", ((D(str(bid)), D("20")),),
+def book(venue, bid, ask, symbol="ABC/USDT"):
+    return Book(venue, symbol, ((D(str(bid)), D("20")),),
                 ((D(str(ask)), D("20")),), 1000, True)
 
 def identity(venue, contract="0xabc", ts=1000):
@@ -62,3 +62,22 @@ def test_missing_fee_currency_blocks_candidate():
                    fee("buy", currency=""), fee("sell"))
     assert not result["eligible"]
     assert result["reason"] == "trading_fee_currency_unverified"
+
+
+def test_malformed_symbol_blocks_fee_currency_assessment():
+    malformed = Book("buy", "ABCUSDT", ((D("10"), D("20")),),
+                     ((D("11"), D("20")),), 1000, True)
+    result = evaluate_verified(malformed, book("sell", 15, 16), D("2"),
+                               identity("buy"), identity("sell"), route(),
+                               fee("buy"), fee("sell"), 1000)
+    assert not result["eligible"]
+    assert result["reason"] == "quote_currency_unverified"
+
+
+def test_different_quote_currencies_are_rejected():
+    result = evaluate_verified(book("buy", 10, 11, "ABC/USDT"),
+                               book("sell", 15, 16, "ABC/USDC"), D("2"),
+                               identity("buy"), identity("sell"), route(),
+                               fee("buy", currency="USDT"), fee("sell", currency="USDC"), 1000)
+    assert not result["eligible"]
+    assert result["reason"] == "market_mismatch"
