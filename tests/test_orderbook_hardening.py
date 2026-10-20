@@ -98,3 +98,13 @@ def test_unexpected_bybit_message_invalidates_previous_book():
         state.message({"type": "unknown", "ts": 1001, "data": {"u": 6, "b": [], "a": []}})
     with pytest.raises(ResyncRequired):
         state.export()
+
+
+def test_unexpected_bybit_type_with_snapshot_like_update_id_is_rejected():
+    state = BybitDepth("bybit", "BTCUSDT")
+    state.message({"type": "snapshot", "ts": 1000, "data": {"u": 5, "b": [["100", "1"]], "a": [["101", "1"]]}})
+
+    with pytest.raises(ResyncRequired, match="snapshot required"):
+        state.message({"type": "unknown", "ts": 1001, "data": {"u": 1, "b": [["99", "1"]], "a": [["101", "1"]]}})
+    with pytest.raises(ResyncRequired):
+        state.export()
