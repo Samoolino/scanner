@@ -15,8 +15,8 @@ def route(deposits=True, withdrawals=True, ts=1000):
     return TransferRoute("buy", "sell", "eip155:1", withdrawals, deposits,
                          D("0.1"), "exchange_api", ts)
 
-def fee(venue, ts=1000):
-    return FeeEvidence(venue, D("0.001"), "exchange_api", ts)
+def fee(venue, ts=1000, currency="USDT"):
+    return FeeEvidence(venue, D("0.001"), "exchange_api", ts, currency)
 
 def check(a=None, b=None, r=None, f1=None, f2=None):
     return evaluate_verified(book("buy", 10, 11), book("sell", 15, 16),
@@ -48,3 +48,17 @@ def test_top_ten_excludes_unverified_and_sorts():
     assert len(result) == 10
     assert result[0]["net_quote"] == "14"
     assert result[-1]["net_quote"] == "5"
+
+
+def test_unmodeled_trading_fee_currency_blocks_candidate():
+    result = check(identity("buy"), identity("sell"), route(),
+                   fee("buy", currency="ABC"), fee("sell", currency="USDT"))
+    assert not result["eligible"]
+    assert result["reason"] == "trading_fee_currency_unverified"
+
+
+def test_missing_fee_currency_blocks_candidate():
+    result = check(identity("buy"), identity("sell"), route(),
+                   fee("buy", currency=""), fee("sell"))
+    assert not result["eligible"]
+    assert result["reason"] == "trading_fee_currency_unverified"
