@@ -32,6 +32,8 @@ class FeeEvidence:
     taker_rate: Decimal
     source: str
     verified_at_ms: int
+    # Fee must be denominated in quote currency until other fee assets are modeled.
+    fee_currency: str = ""
 
 def fresh(observed_at_ms: int, now_ms: int, ttl_ms: int) -> bool:
     return 0 <= now_ms - observed_at_ms <= ttl_ms
@@ -58,6 +60,15 @@ def verified_route(route: TransferRoute | None, buy_venue: str, sell_venue: str,
                 and route.withdrawal_fee_base >= 0
                 and fresh(route.verified_at_ms, now_ms, ttl_ms))
 
+def _quote_currency(symbol: str) -> str | None:
+    """Parse only the scanner canonical BASE/QUOTE symbol form."""
+    if not isinstance(symbol, str) or symbol.count("/") != 1:
+        return None
+    base, quote = (part.strip().upper() for part in symbol.split("/"))
+    if not base or not quote or base == quote:
+        return None
+    return quote
+
 def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
                       buy_asset: AssetIdentity | None, sell_asset: AssetIdentity | None,
                       route: TransferRoute | None,
@@ -80,6 +91,16 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
         return {"eligible": False, "reason": "trading_fee_unverified"}
     if buy_fee.venue != buy.venue or sell_fee.venue != sell.venue:
         return {"eligible": False, "reason": "trading_fee_venue_mismatch"}
+    # Current P&L math applies taker fees to quote notional. Reject base-token,
+    # exchange-token, or unknown fee currencies rather than silently misprice them.
+    buy_quote_currency = _quote_currency(buy.symbol)
+    sell_quote_currency = _quote_currency(sell.symbol)
+    if not buy_quote_currency or not sell_quote_currency:
+        return {"eligible": False, "reason": "quote_currency_unverified"}
+    if (buy_quote_currency != sell_quote_currency
+            or buy_fee.fee_currency.strip().upper() != buy_quote_currency
+            or sell_fee.fee_currency.strip().upper() != sell_quote_currency):
+        return {"eligible": False, "reason": "trading_fee_currency_unverified"}
     if not (Decimal("0") <= buy_fee.taker_rate < 1
             and Decimal("0") <= sell_fee.taker_rate < 1):
         return {"eligible": False, "reason": "invalid_trading_fee"}
