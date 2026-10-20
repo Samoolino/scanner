@@ -44,13 +44,23 @@ class FeeEvidence:
     fee_currency: str = ""
 
 def fresh(observed_at_ms: int, now_ms: int, ttl_ms: int) -> bool:
+    # bool is an int subclass in Python, but is never a valid timestamp or TTL.
+    if any(not isinstance(value, int) or isinstance(value, bool)
+           for value in (observed_at_ms, now_ms, ttl_ms)):
+        return False
+    if ttl_ms < 0 or observed_at_ms < 0 or now_ms < 0:
+        return False
     return 0 <= now_ms - observed_at_ms <= ttl_ms
 
 def verified_identity(a: AssetIdentity | None, b: AssetIdentity | None,
                       now_ms: int, ttl_ms: int) -> bool:
-    if a is None or b is None:
+    if not isinstance(a, AssetIdentity) or not isinstance(b, AssetIdentity):
         return False
-    if not all((a.source, b.source, a.chain_id, b.chain_id, a.contract, b.contract)):
+    text_fields = (
+        a.venue, a.symbol, a.chain_id, a.contract, a.source,
+        b.venue, b.symbol, b.chain_id, b.contract, b.source,
+    )
+    if not all(isinstance(value, str) and value.strip() for value in text_fields):
         return False
     if not (fresh(a.verified_at_ms, now_ms, ttl_ms)
             and fresh(b.verified_at_ms, now_ms, ttl_ms)):
