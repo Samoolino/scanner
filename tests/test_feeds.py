@@ -254,3 +254,22 @@ def test_binance_bootstrap_recovers_after_sequence_gap_with_fresh_snapshot():
     assert state.sequence == 21
     assert book.bids[0][1] == __import__("decimal").Decimal("4")
     assert book.asks[0][0] == __import__("decimal").Decimal("102")
+
+
+
+@pytest.mark.parametrize("bad_limit", [True, False, 1.5, 0, -1, "2", None])
+def test_binance_bootstrap_rejects_invalid_buffer_limit(bad_limit):
+    state = BinanceDepth("binance", "BTCUSDT")
+    snapshot = {
+        "bids": [["100", "1"]],
+        "asks": [["101", "1"]],
+        "lastUpdateId": 10,
+    }
+    pending = [{"U": 11, "u": 11, "E": 1001, "b": [], "a": []}]
+    with pytest.raises(ResyncRequired, match="buffer limit"):
+        bootstrap_binance_book(
+            state, snapshot, pending, received_at_ms=1000,
+            max_buffered_events=bad_limit,
+        )
+    with pytest.raises(ResyncRequired):
+        state.export()
