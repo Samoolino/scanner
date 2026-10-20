@@ -40,7 +40,10 @@ def _base_asset(symbol: str) -> str | None:
 
 
 def _valid_market(market: MarketSnapshot, now_ms: int, ttl_ms: int) -> bool:
-    if not all((market.venue, market.symbol, market.source)):
+    if not all(
+        isinstance(value, str) and value.strip()
+        for value in (market.venue, market.symbol, market.source)
+    ):
         return False
     if not isinstance(market.listed, bool):
         return False
@@ -53,7 +56,10 @@ def _valid_market(market: MarketSnapshot, now_ms: int, ttl_ms: int) -> bool:
         return False
     if not volume.is_finite() or volume < 0:
         return False
-    if not isinstance(market.observed_at_ms, int) or not isinstance(market.received_at_ms, int):
+    if (not isinstance(market.observed_at_ms, int)
+            or isinstance(market.observed_at_ms, bool)
+            or not isinstance(market.received_at_ms, int)
+            or isinstance(market.received_at_ms, bool)):
         return False
     return (fresh(market.observed_at_ms, now_ms, ttl_ms)
             and fresh(market.received_at_ms, now_ms, ttl_ms)
