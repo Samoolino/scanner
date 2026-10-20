@@ -11,9 +11,18 @@ def book(venue, bid, ask, symbol="ABC/USDT"):
 def identity(venue, contract="0xabc", ts=1000):
     return AssetIdentity(venue, "ABC", "eip155:1", contract, "exchange_api", ts)
 
-def route(deposits=True, withdrawals=True, ts=1000):
+def route(deposits=True, withdrawals=True, ts=1000, **overrides):
+    values = {
+        "network_id": "eip155:1",
+        "withdrawal_fee_currency": "ABC",
+        "min_withdrawal_base": D("0.5"),
+        "max_withdrawal_base": D("100"),
+        "min_deposit_base": D("0.5"),
+        "max_deposit_base": D("100"),
+    }
+    values.update(overrides)
     return TransferRoute("buy", "sell", "eip155:1", withdrawals, deposits,
-                         D("0.1"), "exchange_api", ts)
+                         D("0.1"), "exchange_api", ts, **values)
 
 def fee(venue, ts=1000, currency="USDT"):
     return FeeEvidence(venue, D("0.001"), "exchange_api", ts, currency)
@@ -81,3 +90,33 @@ def test_different_quote_currencies_are_rejected():
                                fee("buy", currency="USDT"), fee("sell", currency="USDC"), 1000)
     assert not result["eligible"]
     assert result["reason"] == "market_mismatch"
+
+
+def test_route_requires_explicit_network_and_amount_limits():
+    assert not check(identity("buy"), identity("sell"),
+                     route(network_id=""), fee("buy"), fee("sell"))["eligible"]
+    assert not check(identity("buy"), identity("sell"),
+                     route(max_withdrawal_base=None), fee("buy"), fee("sell"))["eligible"]
+
+
+def test_withdrawal_fee_must_be_denominated_in_base_asset():
+    result = check(identity("buy"), identity("sell"),
+                   route(withdrawal_fee_currency="USDT"), fee("buy"), fee("sell"))
+    assert not result["eligible"]
+    assert result["reason"] == "withdrawal_fee_currency_unverified"
+
+
+def test_transfer_quantity_must_fit_withdrawal_and_deposit_limits():
+    too_small = evaluate_verified(
+        book("buy", 10, 11), book("sell", 15, 16), D("0.4"),
+        identity("buy"), identity("sell"), route(), fee("buy"), fee("sell"), 1000)
+    too_large = evaluate_verified(
+        book("buy", 10, 11), book("sell", 15, 16), D("101"),
+        identity("buy"), identity("sell"), route(), fee("buy"), fee("sell"), 1000)
+    deposit_too_small_after_fee = evaluate_verified(
+        book("buy", 10, 11), book("sell", 15, 16), D("0.6"),
+        identity("buy"), identity("sell"),
+        route(min_deposit_base=D("0.55")), fee("buy"), fee("sell"), 1000)
+    assert too_small["reason"] == "transfer_amount_out_of_limits"
+    assert too_large["reason"] == "transfer_amount_out_of_limits"
+    assert deposit_too_small_after_fee["reason"] == "transfer_amount_out_of_limits"
