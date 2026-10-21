@@ -170,3 +170,25 @@ def test_fee_rates_must_be_finite_numeric_values():
                        fee("sell"))
         assert not result["eligible"]
         assert result["reason"] == "invalid_trading_fee"
+
+
+@pytest.mark.parametrize("bad_profit", ["NaN", "Infinity", "-Infinity", "not-a-number", None, {}])
+def test_top_ten_skips_malformed_profit_without_crashing(bad_profit):
+    rows = [
+        {"eligible": True, "net_quote": "3"},
+        {"eligible": True, "net_quote": bad_profit},
+        {"eligible": True, "net_quote": "2"},
+    ]
+    result = top_ten(rows)
+    assert [row["net_quote"] for row in result] == ["3", "2"]
+
+
+def test_top_ten_skips_non_mapping_and_missing_profit_candidates():
+    rows = [
+        {"eligible": True, "net_quote": "3"},
+        None,
+        {"eligible": True},
+        {"eligible": True, "net_quote": "NaN"},
+    ]
+    result = top_ten(rows)
+    assert [row["net_quote"] for row in result] == ["3"]
