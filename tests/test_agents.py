@@ -13,9 +13,13 @@ def complete():
         buy, sell, D("2"),
         AssetIdentity("a", "ABC", "eip155:1", "0xabc", "api", 1000),
         AssetIdentity("b", "ABC", "eip155:1", "0xabc", "api", 1000),
-        TransferRoute("a", "b", "eip155:1", True, True, D("0.1"), "api", 1000),
-        FeeEvidence("a", D("0.001"), "api", 1000),
-        FeeEvidence("b", D("0.001"), "api", 1000))
+        TransferRoute(
+            "a", "b", "eip155:1", True, True, D("0.1"), "api", 1000,
+            network_id="eip155:1", withdrawal_fee_currency="ABC",
+            min_withdrawal_base=D("0.5"), max_withdrawal_base=D("100"),
+            min_deposit_base=D("0.5"), max_deposit_base=D("100")),
+        FeeEvidence("a", D("0.001"), "api", 1000, "USDT"),
+        FeeEvidence("b", D("0.001"), "api", 1000, "USDT"))
 
 def test_supervisor_never_invents_missing_evidence():
     e = EvidenceBundle(book("a", "10", "11"), book("b", "15", "16"), D("2"))
