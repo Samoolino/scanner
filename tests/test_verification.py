@@ -203,3 +203,12 @@ def test_identity_symbols_must_match_book_base_currency():
         route(), fee("buy"), fee("sell"), 1000)
     assert not result["eligible"]
     assert result["reason"] == "asset_identity_market_mismatch"
+
+
+def test_identity_venues_must_match_the_books_being_evaluated():
+    result = evaluate_verified(
+        book("buy", 10, 11), book("sell", 15, 16), D("2"),
+        identity("other-buy-venue"), identity("other-sell-venue"), route(),
+        fee("buy"), fee("sell"), 1000)
+    assert not result["eligible"]
+    assert result["reason"] == "asset_identity_venue_mismatch"
