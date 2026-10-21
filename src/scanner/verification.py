@@ -199,7 +199,21 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
                   other_quote, reserve_quote), now_ms, book_ttl_ms, True, True)
 
 def top_ten(candidates: list[dict]) -> list[dict]:
-    """Never rank unverified or zero/negative-profit observations."""
-    return sorted((c for c in candidates if c.get("eligible") is True
-                   and Decimal(str(c.get("net_quote", "0"))) > 0),
-                  key=lambda c: Decimal(str(c["net_quote"])), reverse=True)[:10]
+    """Rank only well-formed, eligible, positive-profit observations.
+
+    A single malformed candidate must not crash ranking or prevent valid
+    candidates from being shown. Non-finite and unparseable profits fail closed.
+    """
+    ranked: list[tuple[Decimal, dict]] = []
+    for candidate in candidates:
+        if not isinstance(candidate, dict) or candidate.get("eligible") is not True:
+            continue
+        try:
+            profit = Decimal(str(candidate.get("net_quote", "0")))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+        if not profit.is_finite() or profit <= 0:
+            continue
+        ranked.append((profit, candidate))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [candidate for _, candidate in ranked[:10]]
