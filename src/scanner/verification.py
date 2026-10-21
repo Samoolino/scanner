@@ -142,8 +142,9 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
     # Verified contract metadata must describe the base asset actually traded.
     # Matching two metadata records is insufficient if both refer to another token.
     market_base = _base_currency(buy.symbol)
-    if (market_base is None
-            or not isinstance(buy_asset.symbol, str)
+    if market_base is None:
+        return {"eligible": False, "reason": "quote_currency_unverified"}
+    if (not isinstance(buy_asset.symbol, str)
             or not isinstance(sell_asset.symbol, str)
             or buy_asset.symbol.strip().upper() != market_base
             or sell_asset.symbol.strip().upper() != market_base):
