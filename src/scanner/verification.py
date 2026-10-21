@@ -139,6 +139,10 @@ def evaluate_verified(buy: Book, sell: Book, quantity: Decimal,
                       buy_asset.chain_id, now_ms, metadata_ttl_ms))
     if not identity_ok:
         return {"eligible": False, "reason": "asset_identity_unverified"}
+    # Identity evidence is venue-scoped: two matching contracts from unrelated
+    # venues must not be accepted as evidence for the books under evaluation.
+    if buy_asset.venue != buy.venue or sell_asset.venue != sell.venue:
+        return {"eligible": False, "reason": "asset_identity_venue_mismatch"}
     # Verified contract metadata must describe the base asset actually traded.
     # Matching two metadata records is insufficient if both refer to another token.
     market_base = _base_currency(buy.symbol)
