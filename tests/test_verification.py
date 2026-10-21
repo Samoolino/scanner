@@ -193,3 +193,13 @@ def test_top_ten_skips_non_mapping_and_missing_profit_candidates():
     ]
     result = top_ten(rows)
     assert [row["net_quote"] for row in result] == ["3"]
+
+
+def test_identity_symbols_must_match_book_base_currency():
+    result = evaluate_verified(
+        book("buy", 10, 11), book("sell", 15, 16), D("2"),
+        identity("buy", contract="0xabc"),
+        AssetIdentity("sell", "XYZ", "eip155:1", "0xabc", "exchange_api", 1000),
+        route(), fee("buy"), fee("sell"), 1000)
+    assert not result["eligible"]
+    assert result["reason"] == "asset_identity_market_mismatch"
