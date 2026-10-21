@@ -1,4 +1,5 @@
 from decimal import Decimal as D
+import pytest
 from scanner.core import Book
 from scanner.verification import (
     AssetIdentity, TransferRoute, FeeEvidence, evaluate_verified,
